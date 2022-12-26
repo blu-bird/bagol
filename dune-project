@@ -17,11 +17,12 @@
 
 (package
  (name tree)
- (synopsis "A short synopsis")
- (description "A longer description")
+ (synopsis "OCaml tree-walk interpreter.")
+ (description
+  "Implementation of the tree-walk interpreter from Crafting Interpreters in OCaml.")
  (depends ocaml dune)
  (tags
-  (topics "to describe" your project)))
+  (topics "interpreter" your project)))
 
 (package
  (name byte)

@@ -1,0 +1,3 @@
+(executable
+ (name scanner)
+ (libraries ounit2 tree))
