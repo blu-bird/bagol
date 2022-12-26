@@ -14,7 +14,7 @@
   | EOF 
 
   type literal = 
-  | Number of int 
+  | Number of float
   | String of string 
   | Null 
  

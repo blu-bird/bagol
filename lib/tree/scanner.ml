@@ -44,12 +44,68 @@ module Scanner = struct
     | Seq.Nil -> '\x00'
     | Seq.Cons (h, _) -> h
 
-  let rec ignore_until cond seq = 
+  let strCharLst lst = lst |> List.map (String.make 1) |> String.concat ""
+
+  let rec munch_group cond acc seq = 
     if cond (peek seq) then 
       match seq () with 
-      | Seq.Nil -> Seq.empty
-      | Seq.Cons (_, ts) -> ignore_until cond ts
-    else seq
+      | Seq.Nil -> (List.rev acc), Seq.empty
+      | Seq.Cons (h, ts) -> (if h = '\n' then incr line else ()); 
+        munch_group cond (h :: acc) ts
+    else (List.rev acc), seq
+
+  let next_string seq = 
+    let cs, trim_seq = munch_group (fun c -> c <> '"') [] seq in 
+    (match trim_seq () with 
+    | Seq.Nil -> error !line "Unterminated string."; None, Seq.empty
+    | Seq.Cons (_, ts') -> 
+      let text = strCharLst cs in 
+      Some {tok_type = STRING; lexeme = text; literal = String text; line = !line}, ts')
+
+  let isDigit c = Char.compare c '0' >= 0 && Char.compare c '9' <= 0
+
+  let peek_next seq = 
+    match seq () with 
+    | Seq.Nil -> '\x00'
+    | Seq.Cons (_, ts) -> 
+      (match ts () with | Seq.Nil -> '\x00' | Seq.Cons (h, _) -> h)
+
+  let next_num seq = 
+    let cs, trim_seq = munch_group (fun c -> isDigit c) [] seq in
+    let text = strCharLst cs in 
+    (if peek trim_seq = '.' && isDigit (peek_next trim_seq) then 
+      let decimal, ts' = munch_group (fun c -> isDigit c) [] (Seq.drop 1 trim_seq) in 
+      let full_num = text ^ "." ^ strCharLst decimal in
+      Some {tok_type = NUMBER; lexeme = full_num; literal = Number (Float.of_string full_num) ; line = !line}, ts' 
+    else Some {tok_type = NUMBER; lexeme = text; literal = Number (Float.of_string text); line = !line}, trim_seq)
+
+  let isAlpha c = (Char.compare c 'a' >= 0 && Char.compare c 'z' <= 0) || 
+    (Char.compare c 'A' >= 0 && Char.compare c 'Z' <= 0)  || c = '_'
+
+  let keywords = function 
+  | "and" -> AND
+  | "class" -> CLASS
+  | "else" -> ELSE
+  | "false" -> FALSE
+  | "for" -> FOR
+  | "fun" -> FUN
+  | "if" -> IF
+  | "nil" -> NIL
+  | "or" -> OR
+  | "print" -> PRINT
+  | "return" -> RETURN
+  | "super" -> SUPER
+  | "this" -> THIS
+  | "true" -> TRUE
+  | "var" -> VAR
+  | "while" -> WHILE
+  | _ -> IDENTIFIER
+
+  let next_identifier seq = 
+    let cs, trim_seq = munch_group (fun c -> isAlpha c || isDigit c) [] seq in 
+    let text = strCharLst cs in  
+    Some {tok_type = keywords text; lexeme = text; literal = Null; line = !line}, trim_seq
+
 
   let scanToken h st = 
     match h with
@@ -63,11 +119,15 @@ module Scanner = struct
         Some {tok_type = single h; lexeme = String.make 1 h; literal = Null; line = !line}) , st'
     | '/' -> 
       let match_found , st' = match_next '/' st in 
-      (if match_found then 
-        None, ignore_until (fun c -> c <> '\n') st'
+      (if match_found then None, Seq.drop_while (fun c -> c <> '\n') st'
       else Some {tok_type = single h; lexeme = String.make 1 h; literal = Null; line = !line}, st)
-    | _ -> error !line "Unexpected token."; 
-      None , st
+    | ' ' | '\r' | '\t' -> None, st
+    | '\n' -> incr line; None, st
+    | '"' -> next_string st
+    | _ -> 
+      (if isDigit(h) then next_num (Seq.cons h st) else 
+      (if isAlpha(h) then next_identifier (Seq. cons h st)
+        else (error !line "Unexpected token."; None , st)))
 
   let rec scanTokens_opt t = 
     match t () with 
