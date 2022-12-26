@@ -1,0 +1,5 @@
+(executable
+ (name treeinterpreter)
+ (package tree)
+ (public_name Treeinterpreter)
+ (libraries tree.Tree))
