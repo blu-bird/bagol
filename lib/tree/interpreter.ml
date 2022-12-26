@@ -6,11 +6,10 @@ open Errorhandling
 let rec print_tokens tokens = 
   match tokens with 
   | [] -> ()
-  | h :: [] -> print_string h.lexeme
-  | h :: h' :: t -> print_string h.lexeme; print_string ", "; print_tokens (h' :: t)
+  | h :: [] -> print_endline (string_of_token h); 
+  | h :: h' :: t -> print_endline (string_of_token h); print_tokens (h' :: t)
 
-let print_token_list tokens = 
-  print_string "["; print_tokens tokens; print_endline "]"; flush stdout
+let print_token_list tokens = print_tokens tokens; flush stdout
 
 let run src = print_endline src; 
   let tokens = Scanner.scanTokens (String.to_seq src) in 

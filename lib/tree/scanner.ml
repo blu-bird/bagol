@@ -60,7 +60,7 @@ module Scanner = struct
     | Seq.Nil -> error !line "Unterminated string."; None, Seq.empty
     | Seq.Cons (_, ts') -> 
       let text = strCharLst cs in 
-      Some {tok_type = STRING; lexeme = text; literal = String text; line = !line}, ts')
+      Some {tok_type = STRING; lexeme = (String.make 1 '"') ^ text ^ (String.make 1 '"'); literal = String text; line = !line}, ts')
 
   let isDigit c = Char.compare c '0' >= 0 && Char.compare c '9' <= 0
 
@@ -127,7 +127,7 @@ module Scanner = struct
     | _ -> 
       (if isDigit(h) then next_num (Seq.cons h st) else 
       (if isAlpha(h) then next_identifier (Seq. cons h st)
-        else (error !line "Unexpected token."; None , st)))
+        else (error !line "Unexpected character."; None , st)))
 
   let rec scanTokens_opt t = 
     match t () with 
