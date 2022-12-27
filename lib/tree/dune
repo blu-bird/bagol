@@ -1,4 +1,4 @@
 (library
  (name tree)
  (public_name tree.Tree)
- (modules scanner token interpreter errorhandling))
+ (modules scanner token interpreter errorhandling ast))
