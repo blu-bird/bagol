@@ -1,5 +1,8 @@
-  
-  type token_t = 
+  (** [tokenType] is a variant type capturing all the types of token that can 
+      appear in Bagol. These are generated from characters that produce unique tokens, 
+      characters that can produce either one-two character tokens, arbitrary-length
+      tokens, or keywords (and the EOF token). *)
+  type tokenType = 
   (* single char tokens *)
     LEFT_PAREN | RIGHT_PAREN | LEFT_BRACE | RIGHT_BRACE | COMMA | DOT | MINUS
   | PLUS | SEMICOLON | SLASH | STAR 
@@ -13,15 +16,23 @@
   | SUPER | THIS | TRUE | VAR | WHILE 
   | EOF 
 
+  (**[literal] is a type capturing all the different literals that can appear 
+in Bagol tokens, but only for numbers or strings. Tokens otherwise have the Null 
+literal assigned to them. *)
   type literal = 
   | Number of float
   | String of string 
   | Null 
  
+  (**[token]s have a tokenType, a corresponding [lexeme] consisting of the characters
+      corresponding to the token, the [literal] semantic meaning of the token, and
+      what line number [line] it appeared on.*)
   type token = 
-    {tok_type : token_t; lexeme : string; literal : literal; line : int}
+    {tokenType : tokenType; lexeme : string; literal : literal; line : int}
 
-  let string_of_token_t = function 
+  (** [string_of_tokenType] generates the string representation of every term
+      of type [tokenType]. Used for unit testing. *)
+    let string_of_tokenType = function 
    (* single char tokens *)
    | LEFT_PAREN -> "LEFT_PAREN"
    | RIGHT_PAREN -> "RIGHT_PAREN"
@@ -66,10 +77,13 @@
    | WHILE -> "WHILE"
    | EOF -> "EOF"
 
+   (**[string_of_literal] convertes the literal data associated with a token into
+       a string. Used for unit testing. *)
   let string_of_literal = function 
   | Number f -> string_of_float f 
   | String s -> s
   | Null -> "null"
 
+  (**[string_of_token t] prints the token [t]'s data in the form "tokenType lexeme literal".*)
   let string_of_token t = 
-    Printf.sprintf "%s %s %s" (string_of_token_t t.tok_type) t.lexeme (string_of_literal t.literal)
+    Printf.sprintf "%s %s %s" (string_of_tokenType t.tokenType) t.lexeme (string_of_literal t.literal)

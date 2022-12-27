@@ -2,9 +2,15 @@ open Token
 open Errorhandling
 
 module Scanner = struct 
+  (** Representation type for Scanner. Scanner operates on a sequence of characters converted from a string (since there's a built-in function to map [string] -> [char Seq.t].)*)
   type t = char Seq.t
+
+  (** [line] points to the current line number being processed. *)
   let line = ref 1 
 
+  (** [single c] returns the correct [tokenType] for a character given it is the only character representing that token.
+      Precondition: the character [c] must be the only character in the generated token.
+      Raises an Failure if called on a character not representing a token in Bagol. *)
   let single = function 
   (* strict single *)
     | '(' -> LEFT_PAREN
@@ -23,8 +29,16 @@ module Scanner = struct
     | '=' -> EQUAL
     | '<' -> LESS
     | '>' -> GREATER
-    | _ -> EOF (* should be unreachable *)
-  
+    | _ -> raise (Failure "Unreachble code.") (* should be unreachable *)
+
+  (** [make_token tt lex lit] creates a new token with [tokenType] [tt], lexeme [lex],
+      literal [lit], on the line currently pointed to by the ref [line]. *)
+  let make_token tt lex lit = 
+    {tokenType = tt; lexeme = lex; literal = lit; line = !line}
+
+  (** [match_next expected seq] checks if the next token in the character sequence
+      [seq] matches [expected], and returns a pair with the boolean value of this
+  check and the character consumed in the sequence if there is a match. *)  
   let match_next expected seq = 
      match seq () with 
      | Seq.Nil -> false, Seq.empty
@@ -32,12 +46,14 @@ module Scanner = struct
         let hit = h = expected in 
         hit, (if hit then st else seq)
 
+  (** [double c d] returns the correct two-character token with characters
+      [c] and [d].  *)
   let double = function 
   | '!' -> fun _ -> BANG_EQUAL  
   | '=' -> fun _ -> EQUAL_EQUAL  
   | '<' -> fun _ -> LESS_EQUAL  
   | '>' -> fun _ -> GREATER_EQUAL  
-  | _ -> fun _ -> EOF
+  | _ -> fun _ -> raise (Failure "Unreachable code.")
 
   let peek seq = 
     match seq () with 
@@ -60,7 +76,7 @@ module Scanner = struct
     | Seq.Nil -> error !line "Unterminated string."; None, Seq.empty
     | Seq.Cons (_, ts') -> 
       let text = strCharLst cs in 
-      Some {tok_type = STRING; lexeme = (String.make 1 '"') ^ text ^ (String.make 1 '"'); literal = String text; line = !line}, ts')
+      Some (make_token STRING ((String.make 1 '"') ^ text ^ (String.make 1 '"')) (String text)), ts')
 
   let isDigit c = Char.compare c '0' >= 0 && Char.compare c '9' <= 0
 
@@ -76,8 +92,8 @@ module Scanner = struct
     (if peek trim_seq = '.' && isDigit (peek_next trim_seq) then 
       let decimal, ts' = munch_group (fun c -> isDigit c) [] (Seq.drop 1 trim_seq) in 
       let full_num = text ^ "." ^ strCharLst decimal in
-      Some {tok_type = NUMBER; lexeme = full_num; literal = Number (Float.of_string full_num) ; line = !line}, ts' 
-    else Some {tok_type = NUMBER; lexeme = text; literal = Number (Float.of_string text); line = !line}, trim_seq)
+      Some (make_token NUMBER full_num (Number (Float.of_string full_num))) , ts' 
+    else Some (make_token NUMBER text (Number (Float.of_string text))), trim_seq) 
 
   let isAlpha c = (Char.compare c 'a' >= 0 && Char.compare c 'z' <= 0) || 
     (Char.compare c 'A' >= 0 && Char.compare c 'Z' <= 0)  || c = '_'
@@ -104,23 +120,22 @@ module Scanner = struct
   let next_identifier seq = 
     let cs, trim_seq = munch_group (fun c -> isAlpha c || isDigit c) [] seq in 
     let text = strCharLst cs in  
-    Some {tok_type = keywords text; lexeme = text; literal = Null; line = !line}, trim_seq
-
+    Some (make_token (keywords text) text Null), trim_seq
 
   let scanToken h st = 
     match h with
     | '(' | ')' | '{' | '}' | ',' | '.' | '-' | '+' | ';' | '*'  -> 
-      Some {tok_type = single h; lexeme = String.make 1 h; literal = Null; line = !line}, st
+      Some (make_token (single h) (String.make 1 h) Null), st
     | '!' | '=' | '<' | '>' -> (* assumes all one/two tokens have second token '=' *)
       let matchFound, st' = match_next '=' st in 
       (if matchFound then 
-        Some {tok_type = double h '='; lexeme = String.make 1 h ^ "="; literal = Null; line = !line}
+        Some (make_token (double h '=') (String.make 1 h ^ "=") Null)
       else 
-        Some {tok_type = single h; lexeme = String.make 1 h; literal = Null; line = !line}) , st'
+        Some (make_token (single h) (String.make 1 h) Null)) , st'
     | '/' -> 
       let match_found , st' = match_next '/' st in 
       (if match_found then None, Seq.drop_while (fun c -> c <> '\n') st'
-      else Some {tok_type = single h; lexeme = String.make 1 h; literal = Null; line = !line}, st)
+      else Some (make_token (single h) (String.make 1 h) Null) , st) 
     | ' ' | '\r' | '\t' -> None, st
     | '\n' -> incr line; None, st
     | '"' -> next_string st
@@ -131,7 +146,7 @@ module Scanner = struct
 
   let rec scanTokens_opt t = 
     match t () with 
-    | Seq.Nil -> [Some {tok_type = EOF; lexeme = ""; literal = Null; line = !line}]
+    | Seq.Nil -> [Some (make_token EOF "" Null)] 
     | Seq.Cons (h, st) -> let token , tail = scanToken h st in 
       token :: scanTokens_opt tail
   
