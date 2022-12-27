@@ -22,3 +22,19 @@ type expr =
 | EUnary of unop * expr 
 | EBinary of binop * expr * expr 
 | EGroup of expr 
+
+let string_of_unop = function 
+| UMinus -> "-"
+| UBang -> "!"
+
+let string_of_binop = function 
+| BEqualEqual -> "=="
+| BBangEqual -> "!="
+| BLess -> "<"
+| BLessEqual -> "<="
+| BGreater -> ">"
+| BGreaterEqual -> ">="
+| BPlus -> "+"
+| BMinus -> "-"
+| BStar -> "*"
+| BSlash -> "/"
