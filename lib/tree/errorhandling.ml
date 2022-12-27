@@ -1,3 +1,4 @@
+open Token 
 
   (** Boolean flag for whether the code to be interpreted has errored or not. *)
 let hadError = ref false 
@@ -9,4 +10,11 @@ let report line where message =
 
 (** prints *)
 let error line msg = report line "" msg
+
+let error_token token msg = 
+  if token.tokenType == EOF then 
+    report token.line " at end" msg 
+  else 
+    report token.line (" at '" ^ token.lexeme ^ "'") msg 
+
 
