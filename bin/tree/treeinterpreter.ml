@@ -1,4 +1,4 @@
-open Tree.Interpreter
+open Tree.Bagol
 
 (** Main function that parses command-line arguments. *)
 let () =
