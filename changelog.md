@@ -24,3 +24,9 @@ pattern as we would in an object-oriented language.
 - **Use higher-order functions to refactor all left-associative binary operations**
 - Use an `EBool <bool>` expression for booleans instead of separate true/false expressions
 - **UNIMPLEMENTED: synchronization of the parser upon an error**
+
+### Chapter 7: Evaluating Expressions
+- **Mutually-recursive pattern-matching functions instead of visitor pattern**
+- **Combine checking for validity of casting to integer and casting function together**
+- **Use of variant type `value` to capture possible Bagol values (no Java `Object`)**
+- Use OCaml's structural equality `=` to check equality 
