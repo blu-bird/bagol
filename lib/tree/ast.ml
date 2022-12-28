@@ -23,10 +23,12 @@ type expr =
 | EBinary of binop * expr * expr 
 | EGroup of expr 
 
+(**[string_of_unop] gives the string representation for a [unop]. *)
 let string_of_unop = function 
 | UMinus -> "-"
 | UBang -> "!"
 
+(**[string_of_binop] gives the string representation for a [binop]. *)
 let string_of_binop = function 
 | BEqualEqual -> "=="
 | BBangEqual -> "!="

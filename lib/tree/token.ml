@@ -1,7 +1,5 @@
   (** [tokenType] is a variant type capturing all the types of token that can 
-      appear in Bagol. These are generated from characters that produce unique tokens, 
-      characters that can produce either one-two character tokens, arbitrary-length
-      tokens, or keywords (and the EOF token). *)
+      appear in Bagol. *)
   type tokenType = 
   (* single char tokens *)
     LEFT_PAREN | RIGHT_PAREN | LEFT_BRACE | RIGHT_BRACE | COMMA | DOT | MINUS
@@ -16,17 +14,12 @@
   | SUPER | THIS | TRUE | VAR | WHILE 
   | EOF 
 
-  (**[literal] is a type capturing all the different literals that can appear 
-in Bagol tokens, but only for numbers or strings. Tokens otherwise have the Null 
-literal assigned to them. *)
+  (**[literal] is a type capturing all the different literals that can appear in Bagol tokens. *)
   type literal = 
   | Number of float
   | String of string 
   | Null 
  
-  (**[token]s have a tokenType, a corresponding [lexeme] consisting of the characters
-      corresponding to the token, the [literal] semantic meaning of the token, and
-      what line number [line] it appeared on.*)
   type token = 
     {tokenType : tokenType; lexeme : string; literal : literal; line : int}
 

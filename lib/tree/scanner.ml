@@ -8,9 +8,8 @@ module Scanner = struct
   (** [line] points to the current line number being processed. *)
   let line = ref 1 
 
-  (** [single c] returns the correct [tokenType] for a character given it is the only character representing that token.
-      Precondition: the character [c] must be the only character in the generated token.
-      Raises an Failure if called on a character not representing a token in Bagol. *)
+  (** [single c] returns the correct [tokenType] for character [c]. 
+      Precondition: [c] must be a valid character in the lexical grammar of Bagol. *)
   let single = function 
   (* strict single *)
     | '(' -> LEFT_PAREN
@@ -46,22 +45,25 @@ module Scanner = struct
         let hit = h = expected in 
         hit, (if hit then st else seq)
 
-  (** [double c d] returns the correct two-character token with characters
-      [c] and [d].  *)
+  (** [double c d] returns the correct two-character [tokenType] for characters
+      [c] and [d]. Precondition: [cd] can form a valid token in the lexical grammar of Bagol.  *)
   let double = function 
   | '!' -> fun _ -> BANG_EQUAL  
   | '=' -> fun _ -> EQUAL_EQUAL  
   | '<' -> fun _ -> LESS_EQUAL  
   | '>' -> fun _ -> GREATER_EQUAL  
-  | _ -> fun _ -> raise (Failure "Unreachable code.")
+  | _ -> fun _ -> raise (Failure "Unreachable code.") (* should be unreachable *)
 
   let peek seq = 
     match seq () with 
     | Seq.Nil -> '\x00'
     | Seq.Cons (h, _) -> h
 
+  (** [strCharlst lst] turns a list of characters into a string. *)
   let strCharLst lst = lst |> List.map (String.make 1) |> String.concat ""
 
+  (**[munch_group cond acc seq] returns the longest prefix of characters in 
+      seq satisfying [cond] and appends it to the back of [List.rev acc]. *)
   let rec munch_group cond acc seq = 
     if cond (peek seq) then 
       match seq () with 
@@ -70,6 +72,7 @@ module Scanner = struct
         munch_group cond (h :: acc) ts
     else (List.rev acc), seq
 
+  (**[next_string seq] returns the next characters that can constitute a string, if it exists. *)
   let next_string seq = 
     let cs, trim_seq = munch_group (fun c -> c <> '"') [] seq in 
     (match trim_seq () with 
@@ -86,6 +89,7 @@ module Scanner = struct
     | Seq.Cons (_, ts) -> 
       (match ts () with | Seq.Nil -> '\x00' | Seq.Cons (h, _) -> h)
 
+  (**[next_num seq] returns the next characters that can constitute a number, if it exists. *)
   let next_num seq = 
     let cs, trim_seq = munch_group (fun c -> isDigit c) [] seq in
     let text = strCharLst cs in 
@@ -117,6 +121,7 @@ module Scanner = struct
   | "while" -> WHILE
   | _ -> IDENTIFIER
 
+  (**[next_identifier seq] returns the next characters that can constitute an identifier, if it exists. *)
   let next_identifier seq = 
     let cs, trim_seq = munch_group (fun c -> isAlpha c || isDigit c) [] seq in 
     let text = strCharLst cs in  
@@ -144,6 +149,8 @@ module Scanner = struct
       (if isAlpha(h) then next_identifier (Seq. cons h st)
         else (error !line "Unexpected character."; None , st)))
 
+  (**[scanTokens_opt t] generates a list of [token options] including all scanning steps 
+      where a token is not returned.*)
   let rec scanTokens_opt t = 
     match t () with 
     | Seq.Nil -> [Some (make_token EOF "" Null)] 

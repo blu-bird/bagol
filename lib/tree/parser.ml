@@ -26,29 +26,8 @@ module Parser = struct
   | MINUS -> UMinus
   | BANG -> UBang
   | _ -> raise (Failure "Not a valid unary operation.")
-  let equal_op = function 
-  | EQUAL_EQUAL | BANG_EQUAL -> true 
-  | _ -> false 
 
-  let compare_op = function 
-  | GREATER | GREATER_EQUAL | LESS | LESS_EQUAL -> true 
-  | _ -> false 
-
-  let add_op = function 
-  | MINUS | PLUS -> true
-  | _ -> false 
-
-  let mul_op = function
-  | SLASH | STAR -> true 
-  | _ -> false 
-
-  let un_op = function 
-  | BANG | MINUS -> true 
-  | _ -> false 
-
-  let prim_start = function 
-  | FALSE | TRUE | NIL | NUMBER | STRING | LEFT_PAREN -> true 
-  | _ -> false 
+  (* let prim_start =  *)
 
   let group_close = function | RIGHT_PAREN -> true | _ -> false 
 
@@ -65,10 +44,9 @@ module Parser = struct
     | tok :: _ -> raise (parseError tok errMsg)
     | _ -> raise (Failure errMsg)
   
-  (* let synchronize = function 
-  | [] -> raise (Failure "skull emoji x7")
-  | tok :: tail ->  *)
-
+  (**[parseBinLoop tl tc exp op fst] parses the second argument to a 
+     binary operator, forms a binary expression with [op] and [fst],
+     and continues matching successive operations and arguments, if they exist. *)
   let rec parseBinLoop tokenList tokenCond exprParser op first_arg = 
     let second_arg , tail = exprParser tokenList in
     let next_tok , tail' = match_next_cond tail tokenCond in 
@@ -78,6 +56,8 @@ module Parser = struct
     | None -> left_expr , tail'
     | Some op' -> parseBinLoop tail' tokenCond exprParser op' left_expr
 
+    (**[parseBinary tl tc exp] parses a binary expression from [tl] 
+    whose terms are parsed with [exp] and whose operators satisfy [tc].*)
   let parseBinary tokenList tokenCond exprParser = 
     let first_arg , tail = exprParser tokenList in 
     let op , tail' = match_next_cond tail tokenCond in 
@@ -85,6 +65,8 @@ module Parser = struct
     | None -> first_arg, tail' 
     | Some tok -> parseBinLoop tail' tokenCond exprParser tok first_arg
 
+  (**[parseUnary tl tc exp] parses a unary expression from [tl] where the operation
+      satisfies [tc] and whose terms are parsed with [exp]. *)
   let rec parseUnary tokenList tokenCond exprParser = 
     let op , tail = match_next_cond tokenList tokenCond in 
     match op with 
@@ -97,22 +79,25 @@ module Parser = struct
     equality tokenList 
   
   and equality tokenList = 
-    parseBinary tokenList equal_op comparison 
+    parseBinary tokenList 
+      (function | EQUAL_EQUAL | BANG_EQUAL -> true | _ -> false) comparison 
 
   and comparison tokenList = 
-    parseBinary tokenList compare_op term 
+    parseBinary tokenList 
+      (function | GREATER | GREATER_EQUAL | LESS | LESS_EQUAL -> true | _ -> false) term 
 
   and term tokenList = 
-    parseBinary tokenList add_op factor
+    parseBinary tokenList (function | MINUS | PLUS -> true | _ -> false) factor
   
   and factor tokenList = 
-    parseBinary tokenList mul_op unary
+    parseBinary tokenList (function | SLASH | STAR -> true | _ -> false) unary
   
   and unary tokenList = 
-    parseUnary tokenList un_op primary
+    parseUnary tokenList (function | BANG | MINUS -> true | _ -> false ) primary
   
   and primary tokenList = 
-    let token, tail = match_next_cond tokenList prim_start in 
+    let token, tail = match_next_cond tokenList 
+      (function | FALSE | TRUE | NIL | NUMBER | STRING | LEFT_PAREN -> true | _ -> false) in 
     match token with 
     | Some tok -> 
       (match tok.tokenType with 
@@ -126,12 +111,12 @@ module Parser = struct
       | LEFT_PAREN -> 
         let expr , tail' = expression tail in
         EGroup expr, consume tail' group_close "Expect ')' after expression."
-      | _ -> raise (Failure "Expect expression.")) 
+      | _ -> raise (parseError tok "Expect expression.")) 
     | None -> raise (Failure "Unreachable code, should be some primary.")
 
 
   let parse tokenList = 
     try fst (expression tokenList) with 
     | ParseError -> ENil
-    | _ -> raise (Failure "screwed up")
+    | _ -> raise (Failure "Not implemented.")
 end 

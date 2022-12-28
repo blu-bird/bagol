@@ -4,14 +4,14 @@ open Errorhandling
 open Ast
 open Parser
 
+(**[print_tokens] prints all elements in [tokens].*)
 let rec print_tokens tokens = 
   match tokens with 
   | [] -> ()
-  | h :: [] -> print_endline (string_of_token h); 
+  | h :: [] -> print_endline (string_of_token h); flush stdout
   | h :: h' :: t -> print_endline (string_of_token h); print_tokens (h' :: t)
 
-let print_token_list tokens = print_tokens tokens; flush stdout
-
+(**[format_expr] returns a string representation of an [expr].*)
 let rec format_expr = function 
 | EBool b -> string_of_bool b
 | ENum f -> string_of_float f
@@ -23,22 +23,16 @@ let rec format_expr = function
 
 let run src = print_endline src; 
   let tokens = Scanner.scanTokens (String.to_seq src) in 
-  print_token_list tokens; 
+  print_tokens tokens; 
   let expr = Parser.parse tokens in 
   if !hadError then () else 
   print_endline (format_expr expr)
   
-
-(** Runs the contents of the file found in [path]. If the code throws an error, 
-    exit with code 65.*)
 let runFile path =
   let file_channel = open_in path in 
   let code = In_channel.input_all file_channel in 
     run code; if !hadError then exit 65 else ()
 
-(** Run an interactive command-line prompt to interpret code. If any inputted 
-    line of code throws an error, report it but allow the user to continue
-    inputting.  *)
 let rec runPrompt () = 
   print_string "> "; flush stdout; 
   let line = input_line stdin in 
