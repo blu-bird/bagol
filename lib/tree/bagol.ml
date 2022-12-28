@@ -17,8 +17,10 @@ let rec format_expr = function
 | ENum f -> string_of_float f
 | EStr s -> "\"" ^ s ^ "\""
 | ENil -> "nil"
-| EUnary (u, e) -> "( " ^ (string_of_unop u) ^ " " ^ (format_expr e) ^ " )" 
-| EBinary (b , e1 , e2) -> "( " ^ (string_of_binop b) ^ " " ^ (format_expr e1) ^ " " ^ (format_expr e2) ^ " )"
+| EUnary (u, e) -> "( " ^ (string_of_tokenType u.tokenType) 
+  ^ " " ^ (format_expr e) ^ " )" 
+| EBinary (b , e1 , e2) -> "( " ^ (string_of_tokenType b.tokenType) 
+  ^ " " ^ (format_expr e1) ^ " " ^ (format_expr e2) ^ " )"
 | EGroup e -> "( " ^ (format_expr e) ^ " )" 
 
 let run src = print_endline src; 

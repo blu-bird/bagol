@@ -30,29 +30,31 @@ let rec interpret = function
 
 and eval_unop u e = 
   let right = interpret e in
-  match u with 
-  | UBang -> VBool (not (isTruthy right))
-  | UMinus -> VNum (Float.neg (to_num right))
+  match u.tokenType with 
+  | BANG -> VBool (not (isTruthy right))
+  | MINUS -> VNum (Float.neg (to_num right))
+  | _ -> raise (Failure "Parser violated Bagol grammar (unary).")
 
 and eval_binop b e1 e2 = 
   let left = interpret e1 in 
   let right = interpret e2 in 
-  match b with 
-  | (BMinus | BSlash | BStar | BGreater | BGreaterEqual | BLess | BLessEqual) as arithop -> 
+  match b.tokenType with 
+  | (MINUS | SLASH | STAR | GREATER | GREATER_EQUAL | LESS | LESS_EQUAL) as arithop -> 
     let left_num = to_num left in 
     let right_num = to_num right in 
     (match arithop with 
-    | BMinus -> VNum (left_num -. right_num)
-    | BSlash -> VNum (left_num /. right_num)
-    | BStar -> VNum (left_num *. right_num)
-    | BGreater -> VBool (left_num > right_num)
-    | BGreaterEqual -> VBool (left_num >= right_num)
-    | BLess -> VBool (left_num < right_num)
-    | BLessEqual -> VBool (left_num <= right_num)
+    | MINUS -> VNum (left_num -. right_num)
+    | SLASH -> VNum (left_num /. right_num)
+    | STAR -> VNum (left_num *. right_num)
+    | GREATER -> VBool (left_num > right_num)
+    | GREATER_EQUAL -> VBool (left_num >= right_num)
+    | LESS -> VBool (left_num < right_num)
+    | LESS_EQUAL -> VBool (left_num <= right_num)
     | _ -> raise (Failure "Unreachable branch."))
-  | BPlus -> eval_plus left right
-  | BEqualEqual -> VBool (left = right)
-  | BBangEqual -> VBool (left <> right)
+  | PLUS -> eval_plus left right
+  | EQUAL_EQUAL -> VBool (left = right)
+  | BANG_EQUAL -> VBool (left <> right)
+  | _ -> raise (Failure "Unimplemented binary operation.")
 
 and eval_plus v1 v2 = 
   match (v1, v2) with 

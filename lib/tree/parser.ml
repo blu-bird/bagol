@@ -9,7 +9,7 @@ module Parser = struct
   let parseError token msg = 
     error_token token msg; ParseError
 
-  let binop_of_tokenType = function 
+  (* let binop_of_tokenType = function 
   | BANG_EQUAL -> BBangEqual
   | EQUAL_EQUAL -> BEqualEqual
   | GREATER -> BGreater
@@ -20,12 +20,12 @@ module Parser = struct
   | PLUS -> BPlus
   | SLASH -> BSlash
   | STAR -> BStar
-  | _ -> raise (Failure "Not a valid binary operation.")
+  | _ -> raise (Failure "Not a valid binary operation.") *)
 
-  let unop_of_tokenType = function 
+  (* let unop_of_tokenType = function 
   | MINUS -> UMinus
   | BANG -> UBang
-  | _ -> raise (Failure "Not a valid unary operation.")
+  | _ -> raise (Failure "Not a valid unary operation.") *)
 
   (** [match_next_cond] returns the next instance 
       Precondition: [tokenList] and [tokenTypeList] are the same length. *)
@@ -47,7 +47,7 @@ module Parser = struct
     let second_arg , tail = exprParser tokenList in
     let next_tok , tail' = match_next_cond tail tokenCond in 
     let left_expr = 
-      EBinary (binop_of_tokenType (op.tokenType) , first_arg , second_arg) in
+      EBinary (op , first_arg , second_arg) in
     match next_tok with 
     | None -> left_expr , tail'
     | Some op' -> parseBinLoop tail' tokenCond exprParser op' left_expr
@@ -69,7 +69,7 @@ module Parser = struct
     | None -> exprParser tokenList 
     | Some tok -> 
       let arg, tail' = parseUnary tail tokenCond exprParser in
-      EUnary (unop_of_tokenType tok.tokenType , arg) , tail'
+      EUnary (tok , arg) , tail'
 
   let rec expression tokenList = 
     equality tokenList 
