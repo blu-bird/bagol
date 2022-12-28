@@ -1,4 +1,13 @@
 (library
  (name tree)
  (public_name tree.Tree)
- (modules ast bagol errorhandling interpreter parser scanner token value))
+ (modules
+  ast
+  bagol
+  errorhandling
+  environment
+  interpreter
+  parser
+  scanner
+  token
+  value))

@@ -14,3 +14,6 @@ test-scan:
 test-unexpected: 
 	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/unexpected_character.lox
 
+test-statements: 
+	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/basic_statements.lox
+

@@ -16,7 +16,7 @@ module Parser = struct
 
   let consume tokenList tokenCond errMsg = 
     match tokenList with 
-    | tok :: tail when tokenCond tok.tokenType -> tail 
+    | tok :: tail when tokenCond tok.tokenType -> tok, tail 
     | tok :: _ -> raise (parseError tok errMsg)
     | _ -> raise (Failure errMsg)
   
@@ -51,8 +51,17 @@ module Parser = struct
       let arg, tail' = parseUnary tail tokenCond exprParser in
       EUnary (tok , arg) , tail'
 
-  let rec expression tokenList = 
-    equality tokenList 
+  let rec expression tokenList = assignment tokenList 
+  
+  and assignment tokenList = 
+    let expr, tail = equality tokenList in 
+    let eq_match, tail' = match_next_cond tail (function EQUAL -> true | _ -> false) in 
+    match eq_match with 
+    | None -> expr , tail'
+    | Some eqtok -> let value, tail'' = assignment tail' in 
+      match expr with 
+      | EVar t -> EAssign (t, value) , tail''
+      | _ -> raise (parseError eqtok "Invalid assignment target.")
   
   and equality tokenList = 
     parseBinary tokenList 
@@ -73,7 +82,7 @@ module Parser = struct
   
   and primary tokenList = 
     let token, tail = match_next_cond tokenList 
-      (function | FALSE | TRUE | NIL | NUMBER | STRING | LEFT_PAREN -> true | _ -> false) in 
+      (function | FALSE | TRUE | NIL | NUMBER | STRING | LEFT_PAREN | IDENTIFIER -> true | _ -> false) in 
     match token with 
     | Some tok -> 
       (match tok.tokenType with 
@@ -86,13 +95,79 @@ module Parser = struct
         | String s -> EStr s , tail | _ -> raise (Failure "Lexing error, not a string literal."))
       | LEFT_PAREN -> 
         let expr , tail' = expression tail in
-        EGroup expr, consume tail' (function | RIGHT_PAREN -> true | _ -> false) 
-          "Expect ')' after expression."
+        EGroup expr, snd (consume tail' (function | RIGHT_PAREN -> true | _ -> false) 
+          "Expect ')' after expression.")
+      | IDENTIFIER -> EVar tok, tail 
       | _ -> raise (parseError tok "Expect expression.")) 
     | None -> raise (Failure "Unreachable code, should be some primary.")
+  
+  let rec synchronizeLoop tokenList prev = 
+    match tokenList with 
+    | [] -> []
+    | tok :: tail -> 
+      if (tok.tokenType = EOF) then tokenList (* reached the end *)
+      else if (prev.tokenType = SEMICOLON) then tokenList (* just saw semicolon, tok begins new statement *)
+      else match tok.tokenType with 
+      | CLASS | FOR | FUN | IF | PRINT | RETURN | VAR | WHILE -> tokenList 
+      | _ -> synchronizeLoop tail tok 
+
+  let synchronize tokenList = 
+    let tok, tail = match_next_cond tokenList (fun _ -> true) in
+    synchronizeLoop tail (match tok with Some t -> t | None -> failwith "Unreachable.")
+
+  let printStatement tokenList = 
+    let expr, tail = expression tokenList in 
+    let tail' = snd (consume tail (function | SEMICOLON -> true | _ -> false) "Expect ';' after value.") in 
+    Some (SPrint expr) , tail'
+  
+  let exprStatement tokenList = 
+    let expr, tail = expression tokenList in 
+    let tail' = snd (consume tail (function SEMICOLON -> true | _ -> false) "Expect ';' after value.") in 
+    Some (SExpr expr) , tail'
+
+  let statement tokenList = 
+    let tok, tail = match_next_cond tokenList (function PRINT -> true | _ -> false) in 
+    match tok with 
+    | None -> exprStatement tail
+    | Some _ -> printStatement tail 
+
+  let varDeclaration tokenList = 
+    let tok, tail = consume tokenList (function IDENTIFIER -> true | _ -> false) 
+      "Expect variable name." in 
+    let assign , tail' = match_next_cond tail (function EQUAL -> true | _ -> false) in 
+    match assign with 
+    | None -> let _, tail'' = consume tail' (function SEMICOLON -> true | _ -> false) 
+      "Expect ';' after variable declaration." in 
+      Some (SVarDecl (tok, None)), tail''
+    | Some _ -> 
+      let expr, tail'' = expression tail' in 
+      let _, tail''' = consume tail''  (function SEMICOLON -> true | _ -> false) 
+      "Expect ';' after variable declaration." in 
+      Some (SVarDecl (tok, Some expr)), tail'''
+
+  let declaration tokenList = 
+    try (
+      let varTok, tail = match_next_cond tokenList (function VAR -> true | _ -> false) in 
+      match varTok with 
+      | None -> statement tail 
+      | Some _ -> varDeclaration tail 
+    ) 
+    with 
+    | ParseError -> None, synchronize tokenList 
+
+  let rec parseStmtLoop tokenList acc = 
+    let endTok, tail = match_next_cond tokenList (function | EOF -> true | _ -> false) in 
+    match endTok with 
+    | None -> let stmt, tail' = declaration tail in 
+      parseStmtLoop tail' (stmt :: acc)
+    | Some _ -> List.rev acc
 
   let parse tokenList = 
-    try fst (expression tokenList) with 
+    (* EXPRESSIONS: *)
+    (* try fst (expression tokenList) with 
     | ParseError -> ENil
-    | _ -> raise (Failure "Not implemented.")
+    | _ -> raise (Failure "Not implemented.") *)
+    (* STATEMENTS:  *)
+    List.filter_map (fun x -> x) (parseStmtLoop tokenList [])
+
 end 

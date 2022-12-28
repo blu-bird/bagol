@@ -18,18 +18,22 @@ let rec format_expr = function
 | ENum f -> string_of_float f
 | EStr s -> "\"" ^ s ^ "\""
 | ENil -> "nil"
-| EUnary (u, e) -> "(" ^ (u.lexeme) ^ " " ^ (format_expr e) ^ ")" 
-| EBinary (b , e1 , e2) -> "(" ^ (b.lexeme) ^ " " ^ (format_expr e1) ^ " " ^ (format_expr e2) ^ ")"
+| EUnary (u, e) -> "(" ^ u.lexeme ^ " " ^ format_expr e ^ ")" 
+| EBinary (b , e1 , e2) -> "(" ^ b.lexeme ^ " " ^ format_expr e1 ^ " " ^ format_expr e2 ^ ")"
 | EGroup e -> "(group " ^ (format_expr e) ^ " )" 
+| EVar t -> t.lexeme
+| EAssign (t, e) -> "(assign " ^ t.lexeme ^ " " ^ format_expr e ^ " )"
 
 let run src = 
   (* print_endline src;  *)
   let tokens = Scanner.scanTokens (String.to_seq src) in 
   (* print_tokens tokens;  *)
-  let expr = Parser.parse tokens in 
+  (* let expr = Parser.parse tokens in (* EXPRESSIONS *) *)
+  let stmtList = Parser.parse tokens in 
   if !hadError then () else 
-  print_endline (format_expr expr);
-  Interpreter.interpret(expr)
+  (* print_endline (string_of_int (List.length stmtList));  *)
+  (* print_endline (format_expr expr); (* EXPRESSIONS *) *)
+  fst (Interpreter.interpret(stmtList))
 
   
 let runFile path =
