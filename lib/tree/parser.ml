@@ -27,10 +27,6 @@ module Parser = struct
   | BANG -> UBang
   | _ -> raise (Failure "Not a valid unary operation.")
 
-  (* let prim_start =  *)
-
-  let group_close = function | RIGHT_PAREN -> true | _ -> false 
-
   (** [match_next_cond] returns the next instance 
       Precondition: [tokenList] and [tokenTypeList] are the same length. *)
   let match_next_cond tokenList tokenCond  = 
@@ -110,7 +106,8 @@ module Parser = struct
         | String s -> EStr s , tail | _ -> raise (Failure "Lexing error, not a string literal."))
       | LEFT_PAREN -> 
         let expr , tail' = expression tail in
-        EGroup expr, consume tail' group_close "Expect ')' after expression."
+        EGroup expr, consume tail' (function | RIGHT_PAREN -> true | _ -> false) 
+          "Expect ')' after expression."
       | _ -> raise (parseError tok "Expect expression.")) 
     | None -> raise (Failure "Unreachable code, should be some primary.")
 

@@ -18,3 +18,9 @@ language (thanks OCaml) we just leverage OCaml's type system
 (in particular its variant and inductive types) to create the
 representation type for the AST instead of using the visitor 
 pattern as we would in an object-oriented language. 
+
+### Chapter 6: Parsing Expressions
+- Refactored unary/binary expression parsing into recursive functions without while-loops
+- **Use higher-order functions to refactor all left-associative binary operations**
+- Use an `EBool <bool>` expression for booleans instead of separate true/false expressions
+- **UNIMPLEMENTED: synchronization of the parser upon an error**
