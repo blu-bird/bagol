@@ -1,0 +1,5 @@
+(executable
+ (name bytevm)
+ (package byte)
+ (public_name Bytevm)
+ (libraries byte.Byte))

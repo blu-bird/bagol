@@ -3,6 +3,7 @@ open Token
 open Errorhandling
 open Ast
 open Parser
+open Interpreter
 
 (**[print_tokens] prints all elements in [tokens].*)
 let rec print_tokens tokens = 
@@ -17,23 +18,25 @@ let rec format_expr = function
 | ENum f -> string_of_float f
 | EStr s -> "\"" ^ s ^ "\""
 | ENil -> "nil"
-| EUnary (u, e) -> "( " ^ (string_of_tokenType u.tokenType) 
-  ^ " " ^ (format_expr e) ^ " )" 
-| EBinary (b , e1 , e2) -> "( " ^ (string_of_tokenType b.tokenType) 
-  ^ " " ^ (format_expr e1) ^ " " ^ (format_expr e2) ^ " )"
-| EGroup e -> "( " ^ (format_expr e) ^ " )" 
+| EUnary (u, e) -> "(" ^ (u.lexeme) ^ " " ^ (format_expr e) ^ ")" 
+| EBinary (b , e1 , e2) -> "(" ^ (b.lexeme) ^ " " ^ (format_expr e1) ^ " " ^ (format_expr e2) ^ ")"
+| EGroup e -> "(group " ^ (format_expr e) ^ " )" 
 
-let run src = print_endline src; 
+let run src = 
+  (* print_endline src;  *)
   let tokens = Scanner.scanTokens (String.to_seq src) in 
-  print_tokens tokens; 
+  (* print_tokens tokens;  *)
   let expr = Parser.parse tokens in 
   if !hadError then () else 
-  print_endline (format_expr expr)
+  print_endline (format_expr expr);
+  Interpreter.interpret(expr)
+
   
 let runFile path =
   let file_channel = open_in path in 
   let code = In_channel.input_all file_channel in 
-    run code; if !hadError then exit 65 else ()
+    run code; if !hadError then exit 65 
+    else if !hadRuntimeError then exit 70 else ()
 
 let rec runPrompt () = 
   print_string "> "; flush stdout; 

@@ -1,7 +1,12 @@
 open Token 
 
-(** [hadError] is a flag for whether the code to be interpreted has errored or not. *)
+exception ParseError 
+exception RuntimeError of token * string 
+
+(** [hadError] is a flag for whether the code to be interpreted has errored in lexing or not. *)
 let hadError = ref false 
+
+let hadRuntimeError = ref false 
 
 let report line where message = 
   print_endline (Printf.sprintf "[line %d] Error%s: %s" line where message); 
@@ -16,4 +21,7 @@ let error_token token msg =
   else 
     report token.line (" at '" ^ token.lexeme ^ "'") msg 
 
-
+let runtimeError = function  
+  | RuntimeError (t, msg) -> print_endline 
+    (msg ^ "\n[line " ^ string_of_int (t.line) ^ "]"); hadRuntimeError := true
+  | _ -> raise (Failure "Could not handle non-runtime error.")

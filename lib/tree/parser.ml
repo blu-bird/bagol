@@ -4,28 +4,8 @@ open Errorhandling
 
 module Parser = struct 
 
-  exception ParseError 
-
   let parseError token msg = 
     error_token token msg; ParseError
-
-  (* let binop_of_tokenType = function 
-  | BANG_EQUAL -> BBangEqual
-  | EQUAL_EQUAL -> BEqualEqual
-  | GREATER -> BGreater
-  | GREATER_EQUAL -> BGreaterEqual
-  | LESS -> BLess
-  | LESS_EQUAL -> BLessEqual
-  | MINUS -> BMinus
-  | PLUS -> BPlus
-  | SLASH -> BSlash
-  | STAR -> BStar
-  | _ -> raise (Failure "Not a valid binary operation.") *)
-
-  (* let unop_of_tokenType = function 
-  | MINUS -> UMinus
-  | BANG -> UBang
-  | _ -> raise (Failure "Not a valid unary operation.") *)
 
   (** [match_next_cond] returns the next instance 
       Precondition: [tokenList] and [tokenTypeList] are the same length. *)
@@ -110,7 +90,6 @@ module Parser = struct
           "Expect ')' after expression."
       | _ -> raise (parseError tok "Expect expression.")) 
     | None -> raise (Failure "Unreachable code, should be some primary.")
-
 
   let parse tokenList = 
     try fst (expression tokenList) with 
