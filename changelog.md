@@ -33,4 +33,4 @@ pattern as we would in an object-oriented language.
 
 ### Chapter 8: Statements and State 
 - **Environments must be passed as arguments to statement/expression evaluation**
-- Refactoring while loops as recursive functions 
+- Refactoring while loops as (mutually) recursive functions 
