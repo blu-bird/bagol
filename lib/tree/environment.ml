@@ -18,7 +18,21 @@ let rec assign tok v env =
   if Env.mem tok.lexeme env.bindings then {env with bindings = Env.add tok.lexeme v env.bindings}
   else match env.prev with 
   | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
-  | Some p -> assign tok v p 
+  | Some p -> {env with prev = Some (assign tok v p)}
 
 let empty_bindings = Env.empty 
 let initial_env = {prev = None; bindings = Env.empty}
+
+
+let rec string_of_bindings_help binds = 
+  match binds with 
+  | [] -> ""
+  | (s,v) :: [] -> s ^ ": " ^ (string_of_val v)
+  | (s', v') :: h' :: t -> s' ^ ": " ^ (string_of_val v') ^ string_of_bindings_help (h' :: t)
+
+let string_of_bindings binds = 
+  "[" ^ string_of_bindings_help binds ^ "]"
+
+let rec string_of_env env = 
+  "{prev: " ^ (match env.prev with None -> "None" | Some p -> string_of_env p) 
+    ^ " bindings: " ^ string_of_bindings (Env.bindings env.bindings) ^ "}"

@@ -29,7 +29,7 @@ let rec eval_expr env = function
 | EVar tok -> get tok env, env 
 | EAssign (tok, e) -> let v, env' = eval_expr env e in 
   v, assign tok v env'
-
+| ELogic (b, e1, e2) -> eval_logic b env e1 e2 
 
 and eval_unop u env e = 
   let right, env' = eval_expr env e in 
@@ -64,19 +64,45 @@ and eval_plus b env v1 v2 =
   | VStr s1 , VStr s2 -> VStr (s1 ^ s2), env
   | _, _ -> raise (RuntimeError (b, "Operands must be two numbers or two strings."))
 
-let rec eval_block stmtList env = 
+and eval_logic b env e1 e2 = 
+  let left, env' = eval_expr env e1 in 
+  match b.tokenType with 
+  | OR -> if isTruthy left then left, env' else eval_expr env' e2 
+  | AND -> if not (isTruthy left) then left, env' else eval_expr env' e2
+  | _ -> raise (Failure "Not a recognized logical operator.")
+
+let rec eval_block env stmtList = 
   let blockEnv = {prev = Some env; bindings = empty_bindings} in 
-  let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) blockEnv stmtList in 
-  env 
+  let endEnv = List.fold_left (fun e stmt -> eval_stmt e stmt) blockEnv stmtList in
+  match endEnv.prev with 
+    None -> failwith ("Impossible exiting block env: " ^ (string_of_env endEnv)) | Some p -> p
+
+and eval_vardecl env tok = function 
+| None -> define tok.lexeme VNil env 
+| Some e -> let v, env' = eval_expr env e in define tok.lexeme v env'
+
+and eval_if env e st seOpt = 
+  let v, env' = eval_expr env e in 
+  if isTruthy v then 
+    eval_stmt env' st 
+  else match seOpt with
+  | None -> env' 
+  | Some se -> eval_stmt env' se 
+
+and eval_while env e s = 
+  let v, env' = eval_expr env e in 
+  if isTruthy v then 
+    let envb = eval_stmt env' s in 
+    eval_while envb e s 
+  else env'
 
 and eval_stmt env = function  
 | SExpr e -> let _, env' = eval_expr env e in env' 
 | SPrint e -> let value, env' = eval_expr env e in print_endline (string_of_val value); flush stdout; env' 
-| SVarDecl (tok, expr_opt) -> (match expr_opt with 
-    | None -> define tok.lexeme VNil env 
-    | Some e -> let v, env' = eval_expr env e in define tok.lexeme v env')
-| SBlock stmtList -> eval_block stmtList env 
-
+| SVarDecl (tok, expr_opt) -> eval_vardecl env tok expr_opt
+| SBlock stmtList -> eval_block env stmtList 
+| SIf (e, st, seOpt) -> eval_if env e st seOpt
+| SWhile (e, s) -> eval_while env e s
 
 let interpret stmtList = 
   (* STATEMENTS *)
@@ -84,8 +110,8 @@ let interpret stmtList =
     let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) initial_env stmtList in ()
   ) with 
   | RuntimeError (t, msg) -> runtimeError (RuntimeError (t, msg))
-  | _ -> raise (Failure "Unhandled runtime error.")
-
+  | Failure s -> raise (Failure ("Unhandled runtime error. " ^ s))
+  
   (* EXPRESSIONS
   args: expr : expr
   try ( 

@@ -54,7 +54,7 @@ module Parser = struct
   let rec expression tokenList = assignment tokenList 
   
   and assignment tokenList = 
-    let expr, tail = equality tokenList in 
+    let expr, tail = logic_or tokenList in 
     let eq_match, tail' = match_next_cond tail (function EQUAL -> true | _ -> false) in 
     match eq_match with 
     | None -> expr , tail'
@@ -63,6 +63,12 @@ module Parser = struct
       | EVar t -> EAssign (t, value) , tail''
       | _ -> raise (parseError eqtok "Invalid assignment target.")
   
+  and logic_or tokenList = 
+      parseBinary tokenList (function OR -> true | _ -> false) logic_and
+  
+  and logic_and tokenList = 
+      parseBinary tokenList (function AND -> true | _ -> false) equality 
+
   and equality tokenList = 
     parseBinary tokenList 
       (function | EQUAL_EQUAL | BANG_EQUAL -> true | _ -> false) comparison 
@@ -99,7 +105,7 @@ module Parser = struct
           "Expect ')' after expression.")
       | IDENTIFIER -> EVar tok, tail 
       | _ -> raise (parseError tok "Expect expression.")) 
-    | None -> raise (Failure "Unreachable code, should be some primary.")
+    | None -> failwith ("Unreachable code, primary expected on " ^ string_of_token (List.hd tail))
   
   let rec synchronizeLoop tokenList prev = 
     match tokenList with 
@@ -124,14 +130,18 @@ module Parser = struct
     let expr, tail = expression tokenList in 
     let tail' = snd (consume tail (function SEMICOLON -> true | _ -> false) "Expect ';' after value.") in 
     Some (SExpr expr) , tail'
-
+  
   let rec statement tokenList = 
-    let tok_opt, tail = match_next_cond tokenList (function PRINT | LEFT_BRACE -> true | _ -> false) in 
+    let tok_opt, tail = match_next_cond tokenList 
+      (function PRINT | LEFT_BRACE | IF | WHILE | FOR -> true | _ -> false) in 
     match tok_opt with 
     | None -> exprStatement tail
     | Some tok -> match tok.tokenType with 
       | PRINT -> printStatement tail 
-      | LEFT_BRACE -> block tail 
+      | LEFT_BRACE -> blockStatement tail 
+      | IF -> ifStatement tail 
+      | WHILE -> whileStatement tail 
+      | FOR -> forStatement tail 
       | _ -> failwith "Unimplemented."
 
   and varDeclaration tokenList = 
@@ -165,11 +175,67 @@ module Parser = struct
       blockLoop tail' (stmt_opt :: acc)
     | None -> List.rev acc, tail 
   
-  and block tokenList = 
+  and blockStatement tokenList = 
     let stmtOptList, tail = blockLoop tokenList [] in 
     let _, tail' = consume tail (function RIGHT_BRACE -> true | _ -> false) "Expect '}' after block." in
     let stmtList = List.filter_map (fun x -> x) stmtOptList in
     Some (SBlock stmtList), tail'
+
+  and ifStatement tokenList = 
+    let _, tail = consume tokenList (function LEFT_PAREN -> true | _ -> false)
+      "Expect '(' after 'if'." in 
+    let guard, guardTail = expression tail in 
+    let rparen, tail' = consume guardTail (function RIGHT_PAREN -> true | _ -> false)
+      "Expect ')' after if condition." in 
+    let thenOpt, thenTail = statement tail' in 
+    match thenOpt with 
+    | None -> raise (parseError rparen "Expect statement after 'if'.")
+    | Some thenStmt -> 
+      let elseOpt, elseTail = match_next_cond thenTail (function ELSE -> true | _  -> false) in 
+      match elseOpt with 
+      | Some elseTok -> (let eStmtOpt, tail'' = statement elseTail in 
+        match eStmtOpt with 
+        | None -> raise (parseError elseTok "Expect statement after 'else'.")
+        | Some eStmt -> Some (SIf (guard, thenStmt, Some eStmt)), tail'')
+      | None -> Some (SIf (guard, thenStmt, None)), elseTail  
+
+  and whileStatement tokenList = 
+    let _, tail = consume tokenList (function LEFT_PAREN -> true | _ -> false)
+    "Expect '(' after 'while'." in 
+  let cond, guardTail = expression tail in 
+  let rparen, tail' = consume guardTail (function RIGHT_PAREN -> true | _ -> false)
+    "Expect ')' after condition." in 
+  let bodyOpt, whileTail = statement tail' in 
+  match bodyOpt with 
+  | None -> raise (parseError rparen "Expect statement after 'while'.")
+  | Some body -> Some (SWhile (cond, body)), whileTail
+      
+  and forStatement tokenList = 
+    let _, guardTail = consume tokenList (function LEFT_PAREN -> true | _ -> false)
+      "Expect '(' after 'for'." in 
+    let initForm, initTail = match_next_cond guardTail (function SEMICOLON | VAR -> true | _ -> false) in 
+    let initOpt, tail' = (match initForm with 
+      | None -> exprStatement initTail
+      | Some tok -> (match tok.tokenType with 
+        | SEMICOLON -> None, initTail
+        | VAR -> varDeclaration initTail
+        | _ -> failwith "Invalid token following '('.")) in 
+    let condForm, condTail = match_next_cond tail' (function SEMICOLON -> true | _ -> false) in 
+    let condOpt, tail'' = (match condForm with 
+      | None -> let e, eTail = expression condTail in 
+        Some e, snd (consume eTail (function SEMICOLON -> true | _ -> false) "Expect ';' after loop condition.")
+      | Some _ -> None, condTail) in
+    let incrForm, incrTail = match_next_cond tail'' (function RIGHT_PAREN -> true | _ -> false) in 
+    let incrOpt, tail''' = (match incrForm with 
+      | None -> let e, eTail = expression incrTail in 
+        Some e, snd (consume eTail (function RIGHT_PAREN -> true | _ -> false) "Expect ')' after for clauses.")
+      | Some _ -> None, incrTail) in 
+    let sOpt, loopTail = statement tail''' in 
+    let body = match sOpt with None -> failwith "For loop must have body." | Some s -> s in 
+    let whileBody = match incrOpt with None -> body | Some incr -> SBlock [body; SExpr incr] in 
+    let whileLoop = SWhile ((match condOpt with None -> EBool true | Some cond -> cond), whileBody) in
+    let forBlock = match initOpt with None -> whileLoop | Some init -> SBlock [init; whileLoop] in 
+    Some forBlock, loopTail
 
   let rec parseStmtLoop tokenList acc = 
     let endTok, tail = match_next_cond tokenList (function | EOF -> true | _ -> false) in 

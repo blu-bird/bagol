@@ -22,7 +22,8 @@ let rec format_expr = function
 | EBinary (b , e1 , e2) -> "(" ^ b.lexeme ^ " " ^ format_expr e1 ^ " " ^ format_expr e2 ^ ")"
 | EGroup e -> "(group " ^ (format_expr e) ^ " )" 
 | EVar t -> t.lexeme
-| EAssign (t, e) -> "(assign " ^ t.lexeme ^ " " ^ format_expr e ^ " )"
+| EAssign (t, e) -> "(assign " ^ t.lexeme ^ " " ^ format_expr e ^ ")"
+| ELogic (b, e1, e2) -> "(logic-" ^ b.lexeme ^ " " ^ format_expr e1 ^ " " ^ format_expr e2 ^ ")"  
 
 let run src = 
   (* print_endline src;  *)
