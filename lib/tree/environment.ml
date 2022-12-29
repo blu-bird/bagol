@@ -4,16 +4,21 @@ open Token
 
 module Env = Map.Make (String)
 
-type env = value Env.t 
+type env = {prev : env option; bindings : value Env.t} 
 
-let define s v env = Env.add s v env 
+let define s v env = {env with bindings = Env.add s v env.bindings}
 
-let get tok env = 
-  if Env.mem tok.lexeme env then Env.find tok.lexeme env 
-  else raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
+let rec get tok env = 
+  if Env.mem tok.lexeme env.bindings then Env.find tok.lexeme env.bindings
+  else match env.prev with 
+  | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
+  | Some p -> get tok p
 
-let assign tok v env = 
-  if Env.mem tok.lexeme env then Env.add tok.lexeme v env 
-  else raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
+let rec assign tok v env = 
+  if Env.mem tok.lexeme env.bindings then {env with bindings = Env.add tok.lexeme v env.bindings}
+  else match env.prev with 
+  | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
+  | Some p -> assign tok v p 
 
-let initial_env = Env.empty 
+let empty_bindings = Env.empty 
+let initial_env = {prev = None; bindings = Env.empty}

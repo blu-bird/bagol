@@ -15,4 +15,5 @@ type stmt =
 | SExpr of expr 
 | SPrint of expr 
 | SVarDecl of token * expr option 
+| SBlock of stmt list
 

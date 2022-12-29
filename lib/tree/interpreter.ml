@@ -27,7 +27,8 @@ let rec eval_expr env = function
 | EUnary (u, e) -> eval_unop u env e
 | EBinary (b, e1, e2) -> eval_binop b env e1 e2
 | EVar tok -> get tok env, env 
-| EAssign (tok, e) -> let v, env' = eval_expr env e in v, assign tok v env' 
+| EAssign (tok, e) -> let v, env' = eval_expr env e in 
+  v, assign tok v env'
 
 
 and eval_unop u env e = 
@@ -63,20 +64,26 @@ and eval_plus b env v1 v2 =
   | VStr s1 , VStr s2 -> VStr (s1 ^ s2), env
   | _, _ -> raise (RuntimeError (b, "Operands must be two numbers or two strings."))
 
-let eval_stmt env = function 
-| SExpr e -> let _ = eval_expr env e in (), env
-| SPrint e -> let value, env' = eval_expr env e in print_endline (string_of_val value); flush stdout, env' 
-| SVarDecl (tok, expr_opt) -> (), match expr_opt with 
+let rec eval_block stmtList env = 
+  let blockEnv = {prev = Some env; bindings = empty_bindings} in 
+  let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) blockEnv stmtList in 
+  env 
+
+and eval_stmt env = function  
+| SExpr e -> let _, env' = eval_expr env e in env' 
+| SPrint e -> let value, env' = eval_expr env e in print_endline (string_of_val value); flush stdout; env' 
+| SVarDecl (tok, expr_opt) -> (match expr_opt with 
     | None -> define tok.lexeme VNil env 
-    | Some e -> let v, env' = eval_expr env e in define tok.lexeme v env' 
+    | Some e -> let v, env' = eval_expr env e in define tok.lexeme v env')
+| SBlock stmtList -> eval_block stmtList env 
 
 
 let interpret stmtList = 
   (* STATEMENTS *)
   try (
-    List.fold_left (fun ((), e) stmt -> eval_stmt e stmt) ((), initial_env) stmtList
+    let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) initial_env stmtList in ()
   ) with 
-  | RuntimeError (t, msg) -> runtimeError (RuntimeError (t, msg)), initial_env
+  | RuntimeError (t, msg) -> runtimeError (RuntimeError (t, msg))
   | _ -> raise (Failure "Unhandled runtime error.")
 
   (* EXPRESSIONS

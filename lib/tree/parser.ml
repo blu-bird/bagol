@@ -125,13 +125,16 @@ module Parser = struct
     let tail' = snd (consume tail (function SEMICOLON -> true | _ -> false) "Expect ';' after value.") in 
     Some (SExpr expr) , tail'
 
-  let statement tokenList = 
-    let tok, tail = match_next_cond tokenList (function PRINT -> true | _ -> false) in 
-    match tok with 
+  let rec statement tokenList = 
+    let tok_opt, tail = match_next_cond tokenList (function PRINT | LEFT_BRACE -> true | _ -> false) in 
+    match tok_opt with 
     | None -> exprStatement tail
-    | Some _ -> printStatement tail 
+    | Some tok -> match tok.tokenType with 
+      | PRINT -> printStatement tail 
+      | LEFT_BRACE -> block tail 
+      | _ -> failwith "Unimplemented."
 
-  let varDeclaration tokenList = 
+  and varDeclaration tokenList = 
     let tok, tail = consume tokenList (function IDENTIFIER -> true | _ -> false) 
       "Expect variable name." in 
     let assign , tail' = match_next_cond tail (function EQUAL -> true | _ -> false) in 
@@ -145,7 +148,7 @@ module Parser = struct
       "Expect ';' after variable declaration." in 
       Some (SVarDecl (tok, Some expr)), tail'''
 
-  let declaration tokenList = 
+  and declaration tokenList = 
     try (
       let varTok, tail = match_next_cond tokenList (function VAR -> true | _ -> false) in 
       match varTok with 
@@ -154,6 +157,19 @@ module Parser = struct
     ) 
     with 
     | ParseError -> None, synchronize tokenList 
+  
+  and blockLoop tokenList acc = 
+    let nextTok, tail = match_next_cond tokenList (function EOF | RIGHT_BRACE -> false | _ -> true) in 
+    match nextTok with  
+    | Some _ -> let stmt_opt, tail' = declaration tokenList in 
+      blockLoop tail' (stmt_opt :: acc)
+    | None -> List.rev acc, tail 
+  
+  and block tokenList = 
+    let stmtOptList, tail = blockLoop tokenList [] in 
+    let _, tail' = consume tail (function RIGHT_BRACE -> true | _ -> false) "Expect '}' after block." in
+    let stmtList = List.filter_map (fun x -> x) stmtOptList in
+    Some (SBlock stmtList), tail'
 
   let rec parseStmtLoop tokenList acc = 
     let endTok, tail = match_next_cond tokenList (function | EOF -> true | _ -> false) in 

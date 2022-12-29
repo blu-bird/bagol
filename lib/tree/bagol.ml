@@ -33,7 +33,7 @@ let run src =
   if !hadError then () else 
   (* print_endline (string_of_int (List.length stmtList));  *)
   (* print_endline (format_expr expr); (* EXPRESSIONS *) *)
-  fst (Interpreter.interpret(stmtList))
+  Interpreter.interpret(stmtList)
 
   
 let runFile path =
