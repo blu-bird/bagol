@@ -26,8 +26,9 @@ module Parser = struct
   let rec parseBinLoop tokenList tokenCond exprParser op first_arg = 
     let second_arg , tail = exprParser tokenList in
     let next_tok , tail' = match_next_cond tail tokenCond in 
-    let left_expr = 
-      EBinary (op , first_arg , second_arg) in
+    let left_expr = match op.tokenType with 
+      | AND | OR -> ELogic (op, first_arg , second_arg)
+      | _ -> EBinary (op , first_arg , second_arg) in
     match next_tok with 
     | None -> left_expr , tail'
     | Some op' -> parseBinLoop tail' tokenCond exprParser op' left_expr
