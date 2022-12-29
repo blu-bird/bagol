@@ -30,3 +30,7 @@ pattern as we would in an object-oriented language.
 - **Combine checking for validity of casting to integer and casting function together**
 - **Use of variant type `value` to capture possible Bagol values (no Java `Object`)**
 - Use OCaml's structural equality `=` to check equality 
+
+### Chapter 8: Statements and State 
+- **Environments must be passed as arguments to statement/expression evaluation**
+- Refactoring while loops as recursive functions 
