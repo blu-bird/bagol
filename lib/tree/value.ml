@@ -14,18 +14,20 @@ type 'a value =
     MAY NEED A REWORK -- stmt instead of stmt list? 
     ['a] should ALWAYS be [env] *)
 and 'a callable = { arity : int ; 
-  call : ('a -> stmt list -> 'a) -> (string -> 'a value -> 'a ->'a) 
-    -> 'a value list -> 'a value * 'a }
+  call : ('a -> stmt list -> 'a) -> (string -> 'a value -> 'a ->'a) ->
+    ('a -> 'a) -> 'a -> 'a value list -> 'a value * 'a }
 
 and 'a func = (token * token list * stmt list) -> 'a -> 'a callable
 
 let rec function_call (tok, paramToks, body) closure = 
   {arity = List.length paramToks; 
-  call = fun interp def args -> 
+  call = fun interp def push start args -> 
+    let startEnv = push closure in 
     let params = List.map (fun t -> t.lexeme) paramToks in 
-    let argEnv = List.fold_left2 (fun e s v -> def s v e) closure params args in 
+    let argEnv = List.fold_left2 (fun e s v -> def s v e) startEnv params args in 
     let argEnvRec = def tok.lexeme (VFunc (function_call (tok, paramToks, body) closure)) argEnv in
-    VNil, interp argEnvRec body }
+    let _ = interp argEnvRec body in 
+    VNil, start }
 
 
 let string_of_val = function 

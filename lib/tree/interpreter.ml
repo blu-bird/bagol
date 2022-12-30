@@ -84,7 +84,7 @@ and eval_call env e t eList =
       if (List.length valList <> call.arity) then 
         raise (RuntimeError (t, "Expected " ^ string_of_int call.arity 
         ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
-      else (try (call.call (eval_block) (define) valList) with 
+      else (try (call.call (eval_block) (define) (push_env) envArgs valList) with 
       | Return rval -> rval, envArgs 
       | exn -> raise exn)
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))

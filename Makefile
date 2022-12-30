@@ -18,5 +18,5 @@ test-statements:
 	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/basic_statements.lox
 
 test-curr: 
-	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/fibloops.bgl
+	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/test.bgl
 

@@ -290,7 +290,7 @@ module Parser = struct
     let rpOpt, checkTail = match_next_cond parenTail (function RIGHT_PAREN -> true | _ -> false) in 
     let params, paramTail = (match rpOpt with 
     | None -> paramLoop checkTail []
-    | Some _ -> [], checkTail) in 
+    | Some _ -> [], parenTail) in 
     let _, rParenTail = consume paramTail (function RIGHT_PAREN -> true | _ -> false) 
       "Expect ')' after parameters." in 
     let lBrace, lBraceTail = consume rParenTail (function LEFT_BRACE -> true | _ -> false) 

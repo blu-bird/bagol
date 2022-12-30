@@ -21,11 +21,13 @@ let empty_bindings = Env.empty
 
 let initial_env = {prev = None; bindings = Env.empty}
 
+let push_env env = {prev = Some env; bindings = empty_bindings}
+
 (**[global_env] defines the built-in function [clock] that takes 0 arguments
     and returns [Sys.time ()] (time since program started executing) to  
     MAY NEED REWORK  *)
 let global_env = define "clock"
-  (VFunc {arity = 0; call = fun _ _ _ -> VNum (Sys.time ()), initial_env })
+  (VFunc {arity = 0; call = fun _ _ _ _ _ -> VNum (Sys.time ()), initial_env })
   initial_env
 
 let rec string_of_bindings_help binds = 
