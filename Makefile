@@ -17,6 +17,17 @@ test-unexpected:
 test-statements: 
 	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/basic_statements.lox
 
+<<<<<<< Updated upstream
+test-curr: 
+	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/test.bgl
+=======
+test-loops: 
+	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/fibloops.bgl
+>>>>>>> Stashed changes
+
+test-funcs: 
+	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/fibrecur.bgl
+
 test-curr: 
 	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/test.bgl
 

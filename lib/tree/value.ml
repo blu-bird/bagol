@@ -7,27 +7,43 @@ type 'a value =
 | VBool of bool 
 | VNum of float 
 | VStr of string 
-| VFunc of 'a callable 
+| VFunc of 'a callable
 
 (**['a callable] is the representation type for callable values in Bagol. This contains
     a [call] function that takes in an interpreting function of type ...
     MAY NEED A REWORK -- stmt instead of stmt list? 
     ['a] should ALWAYS be [env] *)
-and 'a callable = { arity : int ; 
-  call : ('a -> stmt list -> 'a) -> (string -> 'a value -> 'a ->'a) ->
-    ('a -> 'a) -> 'a -> 'a value list -> 'a value * 'a }
+and 'a callInter = { arity : int ; 
+  call : ('a -> stmt list -> 'a) -> (string -> 'a value -> 'a ->'a) -> ('a -> string) 
+  -> ('a -> 'a) -> 'a -> 'a callData -> 'a value list -> 'a value * 'a }
 
-and 'a func = (token * token list * stmt list) -> 'a -> 'a callable
+and 'a funcData = {decl : token * token list * stmt list; closure : 'a}
 
-let rec function_call (tok, paramToks, body) closure = 
-  {arity = List.length paramToks; 
-  call = fun interp def push start args -> 
-    let startEnv = push closure in 
-    let params = List.map (fun t -> t.lexeme) paramToks in 
-    let argEnv = List.fold_left2 (fun e s v -> def s v e) startEnv params args in 
-    let argEnvRec = def tok.lexeme (VFunc (function_call (tok, paramToks, body) closure)) argEnv in
-    let _ = interp argEnvRec body in 
-    VNil, start }
+and 'a callData = 
+| Nada
+| Func of 'a funcData 
+
+and 'a callable = 'a callInter * 'a callData
+
+let rec function_call (tok, paramToks, body) cl = 
+  ({arity = List.length paramToks; 
+    call = fun interp def debug push start _ args -> 
+      print_endline ("closure of " ^ tok.lexeme ^ ": " ^ debug cl); 
+      let funcEnv = push cl in 
+      let params = List.map (fun t -> t.lexeme) paramToks in 
+      let argEnv = List.fold_left2 (fun e s v -> def s v e) funcEnv params args in 
+      let outEnv = interp argEnv body in
+      print_endline ("outEnv is: " ^ debug outEnv);
+      (* (match cd with 
+      | Func fd -> fd.closure := outEnv; print_endline ("updated: " ^ debug (!(fd.closure)))
+      | _ -> failwith "Not calling a function.");  *)
+      (* let argEnvRec = def tok.lexeme (VFunc (function_call (tok, paramToks, body) closure)) argEnv in *)
+      print_endline (tok.lexeme);
+      let returnedEnv = def tok.lexeme (VFunc (function_call (tok, paramToks, body) outEnv)) start in
+      print_endline (debug returnedEnv);
+      VNil, returnedEnv}, 
+    Func {decl = (tok, paramToks, body); closure = cl}
+  )
 
 
 let string_of_val = function 
@@ -38,4 +54,4 @@ let string_of_val = function
     String.sub sf 0 (String.length sf - 1)
   else sf)
 | VStr s -> s 
-| _ -> ""
+| VFunc _ -> "<fn>"

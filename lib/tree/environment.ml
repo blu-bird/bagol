@@ -9,8 +9,6 @@ type env = {prev : env option; bindings : env value Env.t}
 
 let define s v env = {env with bindings = Env.add s v env.bindings}
 
-
-
 let rec assign tok v env = 
   if Env.mem tok.lexeme env.bindings then {env with bindings = Env.add tok.lexeme v env.bindings}
   else match env.prev with 
@@ -18,6 +16,8 @@ let rec assign tok v env =
   | Some p -> {env with prev = Some (assign tok v p)}
 
 let empty_bindings = Env.empty 
+
+let push_up env = {prev = Some env; bindings = Env.empty}
 
 let initial_env = {prev = None; bindings = Env.empty}
 
@@ -27,14 +27,14 @@ let push_env env = {prev = Some env; bindings = empty_bindings}
     and returns [Sys.time ()] (time since program started executing) to  
     MAY NEED REWORK  *)
 let global_env = define "clock"
-  (VFunc {arity = 0; call = fun _ _ _ _ _ -> VNum (Sys.time ()), initial_env })
+  (VFunc ({arity = 0; call = fun _ _ _ _ _ _ _ -> VNum (Sys.time ()), initial_env }, Nada))
   initial_env
 
 let rec string_of_bindings_help binds = 
   match binds with 
   | [] -> ""
   | (s,v) :: [] -> s ^ ": " ^ (string_of_val v)
-  | (s', v') :: h' :: t -> s' ^ ": " ^ (string_of_val v') ^ string_of_bindings_help (h' :: t)
+  | (s', v') :: h' :: t -> s' ^ ": " ^ (string_of_val v') ^ ", " ^ string_of_bindings_help (h' :: t)
 
 let string_of_bindings binds = 
   "[" ^ string_of_bindings_help binds ^ "]"

@@ -75,16 +75,20 @@ and eval_logic b env e1 e2 =
   | _ -> raise (Failure "Not a recognized logical operator.")
 
 and eval_call env e t eList = 
+  print_endline ("eval_call's env: " ^ string_of_env env); 
   let callee, env' = eval_expr env e in 
   let envArgs, valList = 
     List.fold_left_map 
       (fun envIn expr -> let v, envOut = eval_expr envIn expr in envOut, v) env' eList in 
+  print_endline ("eval_call's env after eval'ing name and args: " ^ string_of_env envArgs); 
   match callee with 
-  | VFunc call -> 
-      if (List.length valList <> call.arity) then 
-        raise (RuntimeError (t, "Expected " ^ string_of_int call.arity 
+  | VFunc (ci, cd) -> 
+      if (List.length valList <> ci.arity) then 
+        raise (RuntimeError (t, "Expected " ^ string_of_int ci.arity 
         ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
-      else (try (call.call (eval_block) (define) (push_env) envArgs valList) with 
+      else (try (
+          let outEnv = ci.call (eval_block) (define) (string_of_env) (push_up) (envArgs) (cd) valList in 
+          outEnv) with 
       | Return rval -> rval, envArgs 
       | exn -> raise exn)
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
@@ -98,7 +102,7 @@ and eval_block env stmtList =
 and eval_vardecl env tok = function 
 | None -> define tok.lexeme VNil env 
 | Some e -> let v, env' = eval_expr env e in define tok.lexeme v env'
-
+ 
 and eval_if env e st seOpt = 
   let v, env' = eval_expr env e in 
   if isTruthy v then 
@@ -124,20 +128,24 @@ and eval_return env _ exprOpt =
   | Some e -> fst (eval_expr env e)) in 
   raise (Return returnValue)
 
-and eval_stmt env = function  
-| SExpr e -> let _, env' = eval_expr env e in env' 
+and eval_stmt env stmt = 
+let newEnv = 
+match stmt with   
+| SExpr e ->  print_endline ("env before expr stmt eval: " ^ string_of_env env); let _, env' = eval_expr env e in env' 
 | SPrint e -> (* print_endline (string_of_env env); *) let value, env' = eval_expr env e in (* print_endline (string_of_env env'); *)print_endline (string_of_val value); flush stdout; env' 
-| SVarDecl (tok, expr_opt) -> eval_vardecl env tok expr_opt
+| SVarDecl (tok, expr_opt) ->  print_endline ("env before varDecl stmt eval: " ^ string_of_env env); eval_vardecl env tok expr_opt
 | SBlock stmtList -> eval_block env stmtList 
 | SIf (e, st, seOpt) -> eval_if env e st seOpt
 | SWhile (e, s) -> eval_while env e s
-| SFun (tok, tokList, body) -> eval_fun env (tok, tokList, body)
-| SReturn (tok, exprOpt) -> eval_return env tok exprOpt 
+| SFun (tok, tokList, body) -> print_endline ("env before fun stmt eval: " ^ string_of_env env); eval_fun env (tok, tokList, body)
+| SReturn (tok, exprOpt) -> eval_return env tok exprOpt in
+print_endline ("env after stmt eval: " ^ string_of_env newEnv);  newEnv
+
 
 let interpret stmtList = 
   (* STATEMENTS *)
   try (
-    let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) initial_env stmtList in ()
+    let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) (global_env) stmtList in ()
   ) with 
   | RuntimeError (t, msg) -> runtimeError (RuntimeError (t, msg))
   | Failure s -> raise (Failure ("Unhandled runtime error. " ^ s))
