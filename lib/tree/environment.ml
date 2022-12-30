@@ -4,15 +4,12 @@ open Token
 
 module Env = Map.Make (String)
 
-type env = {prev : env option; bindings : value Env.t} 
+(**[env] is the representation type of environments in Bagol. *)
+type env = {prev : env option; bindings : env value Env.t} 
 
 let define s v env = {env with bindings = Env.add s v env.bindings}
 
-let rec get tok env = 
-  if Env.mem tok.lexeme env.bindings then Env.find tok.lexeme env.bindings
-  else match env.prev with 
-  | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
-  | Some p -> get tok p
+
 
 let rec assign tok v env = 
   if Env.mem tok.lexeme env.bindings then {env with bindings = Env.add tok.lexeme v env.bindings}
@@ -21,8 +18,15 @@ let rec assign tok v env =
   | Some p -> {env with prev = Some (assign tok v p)}
 
 let empty_bindings = Env.empty 
+
 let initial_env = {prev = None; bindings = Env.empty}
 
+(**[global_env] defines the built-in function [clock] that takes 0 arguments
+    and returns [Sys.time ()] (time since program started executing) to  
+    MAY NEED REWORK  *)
+let global_env = define "clock"
+  (VFunc {arity = 0; call = fun _ _ _ -> VNum (Sys.time ()), initial_env })
+  initial_env
 
 let rec string_of_bindings_help binds = 
   match binds with 
@@ -36,3 +40,10 @@ let string_of_bindings binds =
 let rec string_of_env env = 
   "{prev: " ^ (match env.prev with None -> "None" | Some p -> string_of_env p) 
     ^ " bindings: " ^ string_of_bindings (Env.bindings env.bindings) ^ "}"
+
+    let rec get tok env = 
+      if Env.mem tok.lexeme env.bindings then Env.find tok.lexeme env.bindings
+      else match env.prev with 
+      | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
+      | Some p -> (* print_endline ("trying to resolve " ^ tok.lexeme ^ " in " ^ string_of_env env); **)
+        get tok p

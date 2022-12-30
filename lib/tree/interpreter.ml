@@ -6,6 +6,8 @@ open Environment
 
 module Interpreter = struct
 
+exception Return of env value
+
 let isTruthy = function 
 | VNil | VBool false -> false 
 | _ -> true 
@@ -30,6 +32,7 @@ let rec eval_expr env = function
 | EAssign (tok, e) -> let v, env' = eval_expr env e in 
   v, assign tok v env'
 | ELogic (b, e1, e2) -> eval_logic b env e1 e2 
+| ECall (e, t, eList) -> eval_call env e t eList 
 
 and eval_unop u env e = 
   let right, env' = eval_expr env e in 
@@ -71,7 +74,22 @@ and eval_logic b env e1 e2 =
   | AND -> if not (isTruthy left) then left, env' else eval_expr env' e2
   | _ -> raise (Failure "Not a recognized logical operator.")
 
-let rec eval_block env stmtList = 
+and eval_call env e t eList = 
+  let callee, env' = eval_expr env e in 
+  let envArgs, valList = 
+    List.fold_left_map 
+      (fun envIn expr -> let v, envOut = eval_expr envIn expr in envOut, v) env' eList in 
+  match callee with 
+  | VFunc call -> 
+      if (List.length valList <> call.arity) then 
+        raise (RuntimeError (t, "Expected " ^ string_of_int call.arity 
+        ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
+      else (try (call.call (eval_block) (define) valList) with 
+      | Return rval -> rval, envArgs 
+      | exn -> raise exn)
+  | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
+
+and eval_block env stmtList = 
   let blockEnv = {prev = Some env; bindings = empty_bindings} in 
   let endEnv = List.fold_left (fun e stmt -> eval_stmt e stmt) blockEnv stmtList in
   match endEnv.prev with 
@@ -96,13 +114,25 @@ and eval_while env e s =
     eval_while envb e s 
   else env'
 
+and eval_fun env (tok, tokList, body) = 
+  let func = VFunc (function_call (tok, tokList, body) env) in 
+  define tok.lexeme func env 
+
+and eval_return env _ exprOpt = 
+  let returnValue = (match exprOpt with 
+  | None -> VNil
+  | Some e -> fst (eval_expr env e)) in 
+  raise (Return returnValue)
+
 and eval_stmt env = function  
 | SExpr e -> let _, env' = eval_expr env e in env' 
-| SPrint e -> let value, env' = eval_expr env e in print_endline (string_of_val value); flush stdout; env' 
+| SPrint e -> (* print_endline (string_of_env env); *) let value, env' = eval_expr env e in (* print_endline (string_of_env env'); *)print_endline (string_of_val value); flush stdout; env' 
 | SVarDecl (tok, expr_opt) -> eval_vardecl env tok expr_opt
 | SBlock stmtList -> eval_block env stmtList 
 | SIf (e, st, seOpt) -> eval_if env e st seOpt
 | SWhile (e, s) -> eval_while env e s
+| SFun (tok, tokList, body) -> eval_fun env (tok, tokList, body)
+| SReturn (tok, exprOpt) -> eval_return env tok exprOpt 
 
 let interpret stmtList = 
   (* STATEMENTS *)

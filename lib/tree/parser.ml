@@ -85,8 +85,39 @@ module Parser = struct
     parseBinary tokenList (function | SLASH | STAR -> true | _ -> false) unary
   
   and unary tokenList = 
-    parseUnary tokenList (function | BANG | MINUS -> true | _ -> false ) primary
+    parseUnary tokenList (function | BANG | MINUS -> true | _ -> false ) call 
   
+  and callLoop tokenList expr = 
+    let parenOpt, tail = match_next_cond tokenList (function LEFT_PAREN -> true | _ -> false) in 
+    match parenOpt with 
+    | None -> expr, tail 
+    | Some _ -> let call_expr, finishTail = finishCall expr tail in 
+      callLoop finishTail call_expr 
+
+  and call tokenList = 
+    let expr, tail = primary tokenList in 
+      callLoop tail expr 
+
+  and finishCallLoop tokenList args = 
+    (if List.length args >= 255 then 
+    error_token (List.hd tokenList) "Can't have more than 255 arguments." else ()); 
+    let expr, exprTail = expression tokenList in
+    let commaOpt, tail = match_next_cond exprTail (function COMMA -> true | _ -> false) in 
+    let next_args = expr :: args in 
+    match commaOpt with 
+    | None -> next_args, tail 
+    | Some _ -> finishCallLoop tail next_args
+      
+  and finishCall e tokenList = 
+    let arguments, pTail = 
+      (let rpOpt, _ = match_next_cond tokenList (function RIGHT_PAREN -> true | _ -> false) in 
+      match rpOpt with 
+      | None -> finishCallLoop tokenList []
+      | Some _ -> [], tokenList) in 
+    let rp, tail = consume pTail (function RIGHT_PAREN -> true | _ -> false) 
+      "Expect ')' after arguments" in 
+    ECall (e, rp, List.rev arguments), tail
+
   and primary tokenList = 
     let token, tail = match_next_cond tokenList 
       (function | FALSE | TRUE | NIL | NUMBER | STRING | LEFT_PAREN | IDENTIFIER -> true | _ -> false) in 
@@ -134,7 +165,7 @@ module Parser = struct
   
   let rec statement tokenList = 
     let tok_opt, tail = match_next_cond tokenList 
-      (function PRINT | LEFT_BRACE | IF | WHILE | FOR -> true | _ -> false) in 
+      (function PRINT | LEFT_BRACE | IF | WHILE | FOR | FUN | RETURN -> true | _ -> false) in 
     match tok_opt with 
     | None -> exprStatement tail
     | Some tok -> match tok.tokenType with 
@@ -143,6 +174,8 @@ module Parser = struct
       | IF -> ifStatement tail 
       | WHILE -> whileStatement tail 
       | FOR -> forStatement tail 
+      | FUN -> funcStatement "function" tail 
+      | RETURN -> returnStatement tok tail 
       | _ -> failwith "Unimplemented."
 
   and varDeclaration tokenList = 
@@ -238,6 +271,44 @@ module Parser = struct
     let forBlock = match initOpt with None -> whileLoop | Some init -> SBlock [init; whileLoop] in 
     Some forBlock, loopTail
 
+  and paramLoop tokenList params = 
+    (if List.length params >= 255 then 
+    error_token (List.hd tokenList) "Can't have more than 255 parameters." else ()); 
+    let id, idTail = consume tokenList (function IDENTIFIER -> true | _ -> false)
+        "Expect parameter name." in 
+    let commaOpt, tail = match_next_cond idTail (function COMMA -> true | _ -> false) in 
+    let next_params = id :: params in 
+    match commaOpt with 
+    | None -> next_params, tail 
+    | Some _ -> paramLoop tail next_params
+
+  and funcStatement kind tokenList = 
+    let name, nameTail = consume tokenList (function IDENTIFIER -> true | _ -> false)
+      ("Expect " ^ kind ^ " name.") in 
+    let _, parenTail = consume nameTail (function LEFT_PAREN -> true | _ -> false)
+      ("Expect '(' after " ^ kind ^ " name.") in 
+    let rpOpt, checkTail = match_next_cond parenTail (function RIGHT_PAREN -> true | _ -> false) in 
+    let params, paramTail = (match rpOpt with 
+    | None -> paramLoop checkTail []
+    | Some _ -> [], checkTail) in 
+    let _, rParenTail = consume paramTail (function RIGHT_PAREN -> true | _ -> false) 
+      "Expect ')' after parameters." in 
+    let lBrace, lBraceTail = consume rParenTail (function LEFT_BRACE -> true | _ -> false) 
+      ("Expect '{' before " ^ kind ^ " body.") in 
+    let bodyOpt, bodyTail = blockStatement lBraceTail in 
+    match bodyOpt with 
+    | Some (SBlock stmtList) -> Some (SFun (name, params, stmtList)), bodyTail
+    | _ -> raise (parseError lBrace "Expecting block statement after '{'.")
+  
+  and returnStatement tok tokenList = 
+    let semiOpt, semiTail = match_next_cond tokenList (function SEMICOLON -> true | _ -> false) in 
+    let exprOpt, exprTail = (match semiOpt with 
+    | None -> let expr, nextTail = expression semiTail in Some expr, nextTail
+    | Some _ -> None, semiTail) in 
+    let _, tail = consume exprTail (function SEMICOLON -> true | _ -> false) 
+      "Expect ';' after return value." in 
+    Some (SReturn (tok, exprOpt)), tail 
+   
   let rec parseStmtLoop tokenList acc = 
     let endTok, tail = match_next_cond tokenList (function | EOF -> true | _ -> false) in 
     match endTok with 
