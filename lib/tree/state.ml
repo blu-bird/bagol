@@ -9,9 +9,11 @@ type value =
 | VBool of bool 
 | VNum of float 
 | VStr of string 
-(* | VFunc of unit  *)
+| VFunc of callable
 
 and env = {prev : env option; bindings : value Env.t} 
+
+and callable = {arity : int; call : value list -> value}
 
 let define s v env = {env with bindings = Env.add s v env.bindings}
 
@@ -38,6 +40,7 @@ let string_of_val = function
     String.sub sf 0 (String.length sf - 1)
   else sf)
 | VStr s -> s 
+| VFunc _ -> ""
 
 let rec string_of_bindings_help binds = 
   match binds with 

@@ -90,7 +90,41 @@ module Parser = struct
     parseBinary tokenList (checks [SLASH; STAR]) unary
   
   and unary tokenList = 
-    parseUnary tokenList (checks [BANG; MINUS]) primary
+    parseUnary tokenList (checks [BANG; MINUS]) call
+
+  and callLoop tokenList expr = 
+    match_next_cond tokenList (check LEFT_PAREN) >>=
+    ((fun tl -> expr, tl), 
+    (fun (_, tl) -> let call_expr, finishTail = finishCall expr tl in 
+    callLoop finishTail call_expr ))
+
+  and call tokenList = 
+    let expr, tail = primary tokenList in callLoop tail expr 
+
+  and finishCallLoop tokenList args = 
+    if List.length args >= 255 then 
+      error_token (List.hd tokenList) "Can't have more than 255 arguments." else (); 
+    let expr, exprTail = expression tokenList in
+    let next_args = expr :: args in 
+    match_next_cond exprTail (check COMMA) >>=
+      ((fun tl -> next_args, tl), 
+      (fun (_, tl) -> finishCallLoop tl next_args))
+      
+  and finishCall e tokenList = 
+    let arguments, pTail = 
+      (match_next_cond tokenList (check RIGHT_PAREN) >>=
+        ((fun _ -> finishCallLoop tokenList []), (fun _ -> [], tokenList))) in 
+    let rp, tail = consume pTail (check RIGHT_PAREN) "Expect ')' after arguments" in 
+    ECall (e, rp, List.rev arguments), tail
+
+ and paramLoop tokenList params = 
+    if List.length params >= 255 then 
+      error_token (List.hd tokenList) "Can't have more than 255 parameters." else (); 
+    let id, idTail = consume tokenList (check IDENTIFIER)
+        "Expect parameter name." in 
+    let next_params = id :: params in 
+    match_next_cond idTail (check COMMA) >>=
+      ((fun tl -> next_params, tl), (fun (_, tl) -> paramLoop tl next_params))
   
   and primary tokenList = 
     match_next_cond tokenList (checks [FALSE; TRUE; NIL; NUMBER; STRING; LEFT_PAREN; IDENTIFIER]) >>=

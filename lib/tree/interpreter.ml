@@ -29,6 +29,7 @@ let rec eval_expr env = function
 | EAssign (tok, e) -> let v, env' = eval_expr env e in 
   v, assign tok v env'
 | ELogic (b, e1, e2) -> eval_logic b env e1 e2 
+| ECall (e, t, eList) -> eval_call env e t eList 
 
 and eval_unop u env e = 
   let right, env' = eval_expr env e in 
@@ -69,6 +70,18 @@ and eval_logic b env e1 e2 =
   | OR -> if isTruthy left then left, env' else eval_expr env' e2 
   | AND -> if not (isTruthy left) then left, env' else eval_expr env' e2
   | _ -> raise (Failure "Not a recognized logical operator.")
+
+and eval_call env e t eList = 
+  let callee, callEnv = eval_expr env e in 
+  match callee with 
+  | VFunc f -> 
+    let argEnv, valList = 
+      List.fold_left_map (fun env expr -> let v, env' = eval_expr env expr in env', v) callEnv eList in 
+    if f.arity <> List.length valList then 
+      raise (RuntimeError (t, "Expected " ^ string_of_int (f.arity) ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
+    else
+      f.call valList, argEnv
+  | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
 
 let rec eval_block env stmtList = 
   let blockEnv = {prev = Some env; bindings = empty_bindings} in 
