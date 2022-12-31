@@ -15,9 +15,9 @@ type 'a value =
     ['a] should ALWAYS be [env] *)
 and 'a callInter = { arity : int ; 
   call : ('a -> stmt list -> 'a) -> (string -> 'a value -> 'a ->'a) -> ('a -> string) 
-  -> ('a -> 'a) -> 'a -> 'a callData -> 'a value list -> 'a value * 'a }
+  -> ('a -> 'a) -> ('a -> 'a) -> 'a -> 'a callData -> 'a value list -> 'a value * 'a * 'a }
 
-and 'a funcData = {decl : token * token list * stmt list; closure : 'a}
+and 'a funcData = {decl : token * token list * stmt list; closure : 'a ref}
 
 and 'a callData = 
 | Nada
@@ -25,24 +25,25 @@ and 'a callData =
 
 and 'a callable = 'a callInter * 'a callData
 
-let rec function_call (tok, paramToks, body) cl = 
+let function_call (tok, paramToks, body) cl = 
   ({arity = List.length paramToks; 
-    call = fun interp def debug push start _ args -> 
+    call = fun interp def debug push pop start cd args -> 
       print_endline ("closure of " ^ tok.lexeme ^ ": " ^ debug cl); 
-      let funcEnv = push cl in 
       let params = List.map (fun t -> t.lexeme) paramToks in 
-      let argEnv = List.fold_left2 (fun e s v -> def s v e) funcEnv params args in 
+      let argEnv = List.fold_left2 (fun e s v -> def s v e) (push cl) params args in 
       let outEnv = interp argEnv body in
-      print_endline ("outEnv is: " ^ debug outEnv);
-      (* (match cd with 
-      | Func fd -> fd.closure := outEnv; print_endline ("updated: " ^ debug (!(fd.closure)))
-      | _ -> failwith "Not calling a function.");  *)
+      let nextCl = pop outEnv in 
+      (* print_endline ("outEnv is: " ^ debug nextCl); *)
+      (match cd with 
+      | Func fd -> fd.closure := nextCl; 
+      (* print_endline ("updated: " ^ debug (!(fd.closure))) *)
+      | _ -> failwith "Not calling a function."); 
       (* let argEnvRec = def tok.lexeme (VFunc (function_call (tok, paramToks, body) closure)) argEnv in *)
-      print_endline (tok.lexeme);
-      let returnedEnv = def tok.lexeme (VFunc (function_call (tok, paramToks, body) outEnv)) start in
-      print_endline (debug returnedEnv);
-      VNil, returnedEnv}, 
-    Func {decl = (tok, paramToks, body); closure = cl}
+      (* print_endline (tok.lexeme); *)
+      (* let returnedEnv = def tok.lexeme (VFunc (function_call (tok, paramToks, body) outEnv)) start in *)
+      (* print_endline (debug returnedEnv); *)
+      VNil, start, nextCl}, 
+    Func {decl = (tok, paramToks, body); closure = ref cl}
   )
 
 
@@ -54,4 +55,7 @@ let string_of_val = function
     String.sub sf 0 (String.length sf - 1)
   else sf)
 | VStr s -> s 
-| VFunc _ -> "<fn>"
+| VFunc _ -> "<fn>" 
+  (* ^ (match cd with 
+    | Func f -> let t, _, _ = f.decl in t.lexeme 
+    | _ -> failwith "Not a function" ) ^ ">" *)

@@ -87,8 +87,9 @@ and eval_call env e t eList =
         raise (RuntimeError (t, "Expected " ^ string_of_int ci.arity 
         ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
       else (try (
-          let outEnv = ci.call (eval_block) (define) (string_of_env) (push_up) (envArgs) (cd) valList in 
-          outEnv) with 
+          let retVal, nextEnv, newCl = ci.call (eval_block) (define) (string_of_env) (push_up) (pop_env) (envArgs) (cd) valList in 
+          (match cd with | Func f -> f.closure := newCl | _ -> failwith "not accessing function data");
+          retVal, nextEnv) with 
       | Return rval -> rval, envArgs 
       | exn -> raise exn)
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))

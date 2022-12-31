@@ -1,5 +1,6 @@
 open Token 
 
+(**[expr] is the representation type of expressions. *)
 type expr = 
 | EBool of bool
 | ENum of float
