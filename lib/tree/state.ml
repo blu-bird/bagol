@@ -28,7 +28,7 @@ let rec assign tok v env =
   | Some p -> {env with prev = Some (assign tok v p)}
 
 let empty_bindings = Env.empty 
-let initial_env = {prev = None; bindings = Env.empty}
+let empty_env = {prev = None; bindings = Env.empty}
 
 let string_of_val = function 
 | VNil -> "nil"
