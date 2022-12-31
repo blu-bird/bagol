@@ -106,7 +106,7 @@ and eval_stmt env = function
 let interpret stmtList = 
   (* STATEMENTS *)
   try (
-    let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) initial_env stmtList in ()
+    let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) empty_env stmtList in ()
   ) with 
   | RuntimeError (t, msg) -> runtimeError (RuntimeError (t, msg))
   | Failure s -> raise (Failure ("Unhandled runtime error. " ^ s))

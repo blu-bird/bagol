@@ -109,24 +109,6 @@ module Parser = struct
         "Expect ')' after expression.")
     | IDENTIFIER -> EVar t, tl 
     | _ -> raise (parseError t "Expect expression.")))
-
-    (* match token with 
-    | Some tok -> 
-      (match tok.tokenType with 
-      | FALSE -> EBool false , tail
-      | TRUE -> EBool true , tail 
-      | NIL -> ENil , tail 
-      | NUMBER -> (match tok.literal with 
-        | Number f -> ENum f , tail | _ -> raise (Failure "Lexing error, not a number literal."))
-      | STRING -> (match tok.literal with 
-        | String s -> EStr s , tail | _ -> raise (Failure "Lexing error, not a string literal."))
-      | LEFT_PAREN -> 
-        let expr , tail' = expression tail in
-        EGroup expr, snd (consume tail' (check RIGHT_PAREN) 
-          "Expect ')' after expression.")
-      | IDENTIFIER -> EVar tok, tail 
-      | _ -> raise (parseError tok "Expect expression.")) 
-    | None -> failwith ("Unreachable code, primary expected on " ^ string_of_token (List.hd tail)) *)
   
   let rec synchronizeLoop tokenList prev = 
     match tokenList with 
