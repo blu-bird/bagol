@@ -21,3 +21,4 @@ type stmt =
 | SIf of expr * stmt * stmt option 
 | SWhile of expr * stmt 
 | SFun of token * token list * stmt list 
+| SReturn of token * expr 

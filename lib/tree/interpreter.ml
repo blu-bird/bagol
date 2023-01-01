@@ -77,15 +77,27 @@ and eval_call env e t eList =
   | VFunc f -> 
     let argEnv, valList = 
       List.fold_left_map (fun env expr -> let v, env' = eval_expr env expr in env', v) callEnv eList in 
-    if f.callable.arity <> List.length valList then 
-      raise (RuntimeError (t, "Expected " ^ string_of_int (f.callable.arity) ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
-    else (* inline the call *)
+    if f.arity <> List.length valList then 
+      raise (RuntimeError (t, "Expected " ^ string_of_int (f.arity) ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
+    else (* inline the call -- all implementations of call() go here *)
+      (match f.data with 
+      | BuiltIn -> f.call valList, argEnv
+      | Func fdata -> eval_fun_call argEnv fdata f.call valList)
+      (* let params = List.map (fun t -> t.lexeme) 
       let funcEnv = push_env argEnv in 
-      
-      f.callable.call valList, funcEnv
+      let par
+       *)
+      (* f.callable.call valList, argEnv *)
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
 
-let rec eval_block env stmtList = 
+and eval_fun_call env fdata fcall vals =
+    let fun_env = push_env env in 
+    let (_, paramToks, body) = fdata.decl in 
+    let params = List.map (fun t -> t.lexeme) paramToks in 
+    let boundVar_env = List.fold_left2 (fun e s v -> define s v e) fun_env params vals in 
+    fcall vals, eval_block boundVar_env body 
+
+and eval_block env stmtList = 
   let blockEnv = {prev = Some env; bindings = empty_bindings} in 
   let endEnv = List.fold_left (fun e stmt -> eval_stmt e stmt) blockEnv stmtList in
   match endEnv.prev with 
@@ -110,6 +122,13 @@ and eval_while env e s =
     eval_while envb e s 
   else env'
 
+and eval_fun env tok params body = 
+  let funcData = {decl = (tok, params, body); closure = ref empty_env} in 
+  let funval = VFunc {arity = List.length params; call = (fun _ -> VNil); data = Func funcData} in 
+  define tok.lexeme funval env 
+
+and eval_return env _ _= env
+
 and eval_stmt env = function  
 | SExpr e -> let _, env' = eval_expr env e in env' 
 | SPrint e -> let value, env' = eval_expr env e in print_endline (string_of_val value); flush stdout; env' 
@@ -117,7 +136,8 @@ and eval_stmt env = function
 | SBlock stmtList -> eval_block env stmtList 
 | SIf (e, st, seOpt) -> eval_if env e st seOpt
 | SWhile (e, s) -> eval_while env e s
-| SFun _ -> empty_env
+| SFun (tok, params, body) -> eval_fun env tok params body 
+| SReturn (tok, expr) -> eval_return env tok expr 
 
 let interpret stmtList = 
   (* STATEMENTS *)
