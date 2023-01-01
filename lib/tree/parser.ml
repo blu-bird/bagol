@@ -160,7 +160,7 @@ module Parser = struct
     Some (SExpr expr) , tail'
   
   let rec statement tokenList = 
-    match_next_cond tokenList (checks [PRINT; LEFT_BRACE; IF; WHILE; FOR; FUN]) >>=
+    match_next_cond tokenList (checks [PRINT; LEFT_BRACE; IF; WHILE; FOR; FUN; RETURN]) >>=
     ((fun tl -> exprStatement tl),
     (fun (t, tl) -> match t.tokenType with 
       | PRINT -> printStatement tl
@@ -168,6 +168,8 @@ module Parser = struct
       | IF -> ifStatement tl 
       | WHILE -> whileStatement tl 
       | FOR -> forStatement tl 
+      | FUN -> funcStatement "function" tl
+      | RETURN -> returnStatement t tl 
       | _ -> failwith "Unimplemented."))
 
   and varDeclaration tokenList = 
@@ -270,7 +272,14 @@ module Parser = struct
     ((fun _ -> raise (parseError lBrace "Expecting statement after '{'.")), 
     (fun (stmt, bodyTail) -> 
       let stmtList = match stmt with | SBlock sl -> sl | _ -> raise (parseError lBrace "Expecting block statement after '{'.") in 
-      (SFun (name, params, stmtList)), bodyTail))
+      (Some (SFun (name, params, stmtList))), bodyTail))
+
+  and returnStatement tok tokenList = 
+  let exprOpt, exprTail = match_next_cond tokenList (check SEMICOLON) >>=
+    ((fun tl -> let expr, nextTail = expression tl in Some expr, nextTail), 
+    (fun (_, tl) -> None, tl)) in 
+  let _, tail = consume exprTail (check SEMICOLON) "Expect ';' after return value." in 
+  Some (SReturn (tok, exprOpt)), tail 
    
   let rec parseStmtLoop tokenList acc = 
     let endTok, tail = match_next_cond tokenList (check EOF) in 

@@ -5,6 +5,8 @@ open State
 
 module Interpreter = struct
 
+exception Return of value
+
 let isTruthy = function 
 | VNil | VBool false -> false 
 | _ -> true 
@@ -82,7 +84,8 @@ and eval_call env e t eList =
     else (* inline the call -- all implementations of call() go here *)
       (match f.data with 
       | BuiltIn -> f.call valList, argEnv
-      | Func fdata -> eval_fun_call argEnv fdata f.call valList)
+      | Func fdata -> try ( eval_fun_call argEnv fdata f.call valList) with 
+        | Return retVal -> retVal , argEnv )
       (* let params = List.map (fun t -> t.lexeme) 
       let funcEnv = push_env argEnv in 
       let par
@@ -91,11 +94,13 @@ and eval_call env e t eList =
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
 
 and eval_fun_call env fdata fcall vals =
-    let fun_env = push_env env in 
+    let fun_env = push_env fdata.closure in 
     let (_, paramToks, body) = fdata.decl in 
     let params = List.map (fun t -> t.lexeme) paramToks in 
     let boundVar_env = List.fold_left2 (fun e s v -> define s v e) fun_env params vals in 
-    fcall vals, eval_block boundVar_env body 
+    let outEnv = eval_block boundVar_env body in 
+    fdata.closure <- outEnv; 
+    fcall vals, env 
 
 and eval_block env stmtList = 
   let blockEnv = {prev = Some env; bindings = empty_bindings} in 
@@ -123,11 +128,16 @@ and eval_while env e s =
   else env'
 
 and eval_fun env tok params body = 
-  let funcData = {decl = (tok, params, body); closure = ref empty_env} in 
+  let funcData = {decl = (tok, params, body); closure = env} in 
   let funval = VFunc {arity = List.length params; call = (fun _ -> VNil); data = Func funcData} in 
-  define tok.lexeme funval env 
+  let cl = define tok.lexeme funval env in 
+  funcData.closure <- cl; cl
 
-and eval_return env _ _= env
+  and eval_return env _ exprOpt = 
+  let returnValue = (match exprOpt with 
+  | None -> VNil
+  | Some e -> fst (eval_expr env e)) in 
+  raise (Return returnValue)
 
 and eval_stmt env = function  
 | SExpr e -> let _, env' = eval_expr env e in env' 
