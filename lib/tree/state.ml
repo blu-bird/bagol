@@ -32,6 +32,8 @@ let rec assign tok v env =
 let empty_bindings = Env.empty 
 let empty_env = {prev = None; bindings = Env.empty}
 
+let globals = empty_env |> define "clock" (VFunc {arity = 0; call = fun _ -> VNum (Sys.time ())}) 
+
 let string_of_val = function 
 | VNil -> "nil"
 | VBool b -> string_of_bool b
