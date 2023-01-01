@@ -1,45 +1,9 @@
-var a = "global a"; 
-var b = "global b"; 
-var c = "global c"; 
+var a = "global"; 
 {
-  var a = "outer a"; 
-  var b = "outer b";
-  {
-    var a = "inner a"; 
+  fun showA() {
     print a; 
-    print b; 
-    print c; 
   }
-  print a; 
-  print b; 
-  print c; 
+  showA(); 
+  var a = "block"; 
+  showA(); 
 }
-print a; 
-print b; 
-print c; 
-
-var f;
-
-fun f1() {
-  var a = "a";
-  fun f2() {
-    var b = "b";
-    fun f3() {
-      var c = "c";
-      fun f4() {
-        print a;
-        print b;
-        print c;
-      }
-      f = f4;
-    }
-    f3();
-  }
-  f2();
-}
-f1();
-
-f();
-// expect: a
-// expect: b
-// expect: c

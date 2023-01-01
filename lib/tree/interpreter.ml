@@ -86,20 +86,19 @@ and eval_call env e t eList =
       | BuiltIn -> f.call valList, argEnv
       | Func fdata -> try ( eval_fun_call argEnv fdata f.call valList) with 
         | Return retVal -> retVal , argEnv )
-      (* let params = List.map (fun t -> t.lexeme) 
-      let funcEnv = push_env argEnv in 
-      let par
-       *)
-      (* f.callable.call valList, argEnv *)
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
 
 and eval_fun_call env fdata fcall vals =
+    let (tok, _, _) = fdata.decl in 
+    print_endline (Printf.sprintf "fun %s closure: %s" tok.lexeme (string_of_env fdata.closure)); 
     let fun_env = push_env fdata.closure in 
     let (_, paramToks, body) = fdata.decl in 
     let params = List.map (fun t -> t.lexeme) paramToks in 
     let boundVar_env = List.fold_left2 (fun e s v -> define s v e) fun_env params vals in 
     let outEnv = eval_block boundVar_env body in 
-    fdata.closure <- outEnv; 
+    let nextCl = pop_env outEnv in
+    print_endline (Printf.sprintf "fun %s new closure: %s" tok.lexeme (string_of_env nextCl)); 
+    fdata.closure <- nextCl; 
     fcall vals, env 
 
 and eval_block env stmtList = 
@@ -152,7 +151,7 @@ and eval_stmt env = function
 let interpret stmtList = 
   (* STATEMENTS *)
   try (
-    let _ = List.fold_left (fun e stmt -> eval_stmt e stmt) empty_env stmtList in ()
+    let _ = List.fold_left (fun e stmt -> let outEnv = eval_stmt e stmt in print_endline (string_of_env outEnv); outEnv) empty_env stmtList in ()
   ) with 
   | RuntimeError (t, msg) -> runtimeError (RuntimeError (t, msg))
   | Failure s -> raise (Failure ("Unhandled runtime error. " ^ s))

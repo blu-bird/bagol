@@ -48,6 +48,8 @@ let empty_env = {prev = None; bindings = empty_bindings}
 
 let push_env env = {prev = Some env; bindings = empty_bindings}
 
+let pop_env env = match env.prev with | Some p -> p | None -> failwith "Runtime error: No previous env to evaluate ins"
+
 let globals = empty_env |> define "clock" (VFunc {data = BuiltIn; arity = 0; call = fun _ -> VNum (Sys.time ())}) 
 
 let string_of_val = function 
@@ -57,18 +59,20 @@ let string_of_val = function
   (if sf.[String.length sf - 1] = '.' then 
     String.sub sf 0 (String.length sf - 1)
   else sf)
-| VStr s -> s 
-| VFunc _ -> ""
+| VStr s -> s
+| VFunc f -> match f.data with 
+  | Func fd -> let (tok, _, _) = fd.decl in Printf.sprintf "<fn %s>" tok.lexeme
+  | _ -> failwith "not a function"
 
 let rec string_of_bindings_help binds = 
   match binds with 
   | [] -> ""
   | (s,v) :: [] -> s ^ ": " ^ (string_of_val v)
-  | (s', v') :: h' :: t -> s' ^ ": " ^ (string_of_val v') ^ string_of_bindings_help (h' :: t)
+  | (s', v') :: h' :: t -> s' ^ ": " ^ (string_of_val v') ^ ", " ^ string_of_bindings_help (h' :: t)
 
 let string_of_bindings binds = 
   "[" ^ string_of_bindings_help binds ^ "]"
 
 let rec string_of_env env = 
   "{prev: " ^ (match env.prev with None -> "None" | Some p -> string_of_env p) 
-    ^ " bindings: " ^ string_of_bindings (Env.bindings env.bindings) ^ "}"
+    ^ ", bindings: " ^ string_of_bindings (Env.bindings env.bindings) ^ "}"
