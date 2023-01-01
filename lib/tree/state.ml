@@ -1,6 +1,7 @@
 open Errorhandling 
 (* open Value *)
 open Token 
+open Ast 
 
 module Env = Map.Make (String)
 
@@ -9,11 +10,20 @@ type value =
 | VBool of bool 
 | VNum of float 
 | VStr of string 
-| VFunc of callable
+| VFunc of func
 
 and env = {prev : env option; bindings : value Env.t} 
 
 and callable = {arity : int; call : value list -> value}
+
+(* module type Callable = sig
+  type t 
+  val arity : int 
+  val call : t value -> t value
+end *)
+and funcData = {decl : token * token list * stmt list ; closure : env ref}
+
+and func = {data : funcData option; callable : callable} 
 
 let define s v env = {env with bindings = Env.add s v env.bindings}
 
@@ -34,7 +44,7 @@ let empty_env = {prev = None; bindings = empty_bindings}
 
 let push_env env = {prev = Some env; bindings = empty_bindings}
 
-let globals = empty_env |> define "clock" (VFunc {arity = 0; call = fun _ -> VNum (Sys.time ())}) 
+let globals = empty_env |> define "clock" (VFunc {data = None; callable = {arity = 0; call = fun _ -> VNum (Sys.time ())}}) 
 
 let string_of_val = function 
 | VNil -> "nil"

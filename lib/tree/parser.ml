@@ -116,15 +116,6 @@ module Parser = struct
         ((fun _ -> finishCallLoop tokenList []), (fun _ -> [], tokenList))) in 
     let rp, tail = consume pTail (check RIGHT_PAREN) "Expect ')' after arguments" in 
     ECall (e, rp, List.rev arguments), tail
-
- and paramLoop tokenList params = 
-    if List.length params >= 255 then 
-      error_token (List.hd tokenList) "Can't have more than 255 parameters." else (); 
-    let id, idTail = consume tokenList (check IDENTIFIER)
-        "Expect parameter name." in 
-    let next_params = id :: params in 
-    match_next_cond idTail (check COMMA) >>=
-      ((fun tl -> next_params, tl), (fun (_, tl) -> paramLoop tl next_params))
   
   and primary tokenList = 
     match_next_cond tokenList (checks [FALSE; TRUE; NIL; NUMBER; STRING; LEFT_PAREN; IDENTIFIER]) >>=
@@ -169,7 +160,7 @@ module Parser = struct
     Some (SExpr expr) , tail'
   
   let rec statement tokenList = 
-    match_next_cond tokenList (checks [PRINT; LEFT_BRACE; IF; WHILE; FOR]) >>=
+    match_next_cond tokenList (checks [PRINT; LEFT_BRACE; IF; WHILE; FOR; FUN]) >>=
     ((fun tl -> exprStatement tl),
     (fun (t, tl) -> match t.tokenType with 
       | PRINT -> printStatement tl
@@ -260,6 +251,27 @@ module Parser = struct
     let forBlock = match initOpt with None -> whileLoop | Some init -> SBlock [init; whileLoop] in 
     Some forBlock, loopTail
 
+  and paramLoop tokenList params = 
+  if List.length params >= 255 then 
+    error_token (List.hd tokenList) "Can't have more than 255 parameters." else (); 
+  let id, idTail = consume tokenList (check IDENTIFIER) "Expect parameter name." in 
+  let next_params = id :: params in 
+  match_next_cond idTail (check COMMA) >>=
+    ((fun tl -> next_params, tl), (fun (_, tl) -> paramLoop tl next_params))
+
+  and funcStatement kind tokenList = 
+  let name, nameTail = consume tokenList (check IDENTIFIER) ("Expect " ^ kind ^ " name.") in 
+  let _, parenTail = consume nameTail (check LEFT_PAREN) ("Expect '(' after " ^ kind ^ " name.") in 
+  let params, paramTail = match_next_cond parenTail (check RIGHT_PAREN) >>=
+    ((fun tl -> paramLoop tl []), (fun _ -> [], parenTail)) in 
+  let _, rParenTail = consume paramTail (check RIGHT_PAREN) "Expect ')' after parameters." in 
+  let lBrace, lBraceTail = consume rParenTail (check LEFT_BRACE) ("Expect '{' before " ^ kind ^ " body.") in 
+  blockStatement lBraceTail >>=
+    ((fun _ -> raise (parseError lBrace "Expecting statement after '{'.")), 
+    (fun (stmt, bodyTail) -> 
+      let stmtList = match stmt with | SBlock sl -> sl | _ -> raise (parseError lBrace "Expecting block statement after '{'.") in 
+      (SFun (name, params, stmtList)), bodyTail))
+   
   let rec parseStmtLoop tokenList acc = 
     let endTok, tail = match_next_cond tokenList (check EOF) in 
     match endTok with 

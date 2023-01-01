@@ -77,10 +77,12 @@ and eval_call env e t eList =
   | VFunc f -> 
     let argEnv, valList = 
       List.fold_left_map (fun env expr -> let v, env' = eval_expr env expr in env', v) callEnv eList in 
-    if f.arity <> List.length valList then 
-      raise (RuntimeError (t, "Expected " ^ string_of_int (f.arity) ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
-    else
-      f.call valList, argEnv
+    if f.callable.arity <> List.length valList then 
+      raise (RuntimeError (t, "Expected " ^ string_of_int (f.callable.arity) ^ " arguments but got " ^ string_of_int (List.length valList) ^ "."))
+    else (* inline the call *)
+      let funcEnv = push_env argEnv in 
+      
+      f.callable.call valList, funcEnv
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
 
 let rec eval_block env stmtList = 
@@ -115,6 +117,7 @@ and eval_stmt env = function
 | SBlock stmtList -> eval_block env stmtList 
 | SIf (e, st, seOpt) -> eval_if env e st seOpt
 | SWhile (e, s) -> eval_while env e s
+| SFun _ -> empty_env
 
 let interpret stmtList = 
   (* STATEMENTS *)

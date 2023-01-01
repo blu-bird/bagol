@@ -20,3 +20,4 @@ type stmt =
 | SBlock of stmt list
 | SIf of expr * stmt * stmt option 
 | SWhile of expr * stmt 
+| SFun of token * token list * stmt list 
