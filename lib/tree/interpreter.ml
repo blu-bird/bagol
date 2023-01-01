@@ -5,11 +5,7 @@ open State
 
 module Interpreter = struct
 
-<<<<<<< HEAD
-exception Return of env value
-=======
 exception Return of value
->>>>>>> 69f5d8e3398d19199fb7ecb5ef8e1c3068056b9c
 
 let isTruthy = function 
 | VNil | VBool false -> false 
