@@ -5,9 +5,8 @@
   ast
   bagol
   errorhandling
-  environment
   interpreter
   parser
   scanner
-  token
-  value))
+  state
+  token))

@@ -24,8 +24,7 @@ let rec format_expr = function
 | EVar t -> t.lexeme
 | EAssign (t, e) -> "(assign " ^ t.lexeme ^ " " ^ format_expr e ^ ")"
 | ELogic (b, e1, e2) -> "(logic-" ^ b.lexeme ^ " " ^ format_expr e1 ^ " " ^ format_expr e2 ^ ")"  
-| ECall (_,_,_) -> "(call)"
-
+| ECall (e, _, _) -> "(call " ^ format_expr e ^ " on " ^ ")" 
 
 let run src = 
   (* print_endline src;  *)
