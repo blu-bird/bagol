@@ -30,7 +30,9 @@ let rec assign tok v env =
   | Some p -> {env with prev = Some (assign tok v p)}
 
 let empty_bindings = Env.empty 
-let empty_env = {prev = None; bindings = Env.empty}
+let empty_env = {prev = None; bindings = empty_bindings}
+
+let push_env env = {prev = Some env; bindings = empty_bindings}
 
 let globals = empty_env |> define "clock" (VFunc {arity = 0; call = fun _ -> VNum (Sys.time ())}) 
 
