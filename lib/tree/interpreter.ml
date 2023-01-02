@@ -2,6 +2,7 @@ open Ast
 open Token
 open Errorhandling
 open State
+open Resolver
 
 module Interpreter = struct
 
@@ -27,9 +28,8 @@ let rec eval_expr env = function
 | EGroup e -> eval_expr env e
 | EUnary (u, e) -> eval_unop u env e
 | EBinary (b, e1, e2) -> eval_binop b env e1 e2
-| EVar tok -> get tok env, env 
-| EAssign (tok, e) -> let v, env' = eval_expr env e in 
-  v, assign tok v env'
+| EVar tok -> lookup_variable env tok (EVar tok) 
+| EAssign (tok, e) -> assign_env env tok e 
 | ELogic (b, e1, e2) -> eval_logic b env e1 e2 
 | ECall (e, t, eList) -> eval_call env e t eList 
 
@@ -65,6 +65,19 @@ and eval_plus b env v1 v2 =
   | VNum n1 , VNum n2 -> VNum (n1 +. n2), env
   | VStr s1 , VStr s2 -> VStr (s1 ^ s2), env
   | _, _ -> raise (RuntimeError (b, "Operands must be two numbers or two strings."))
+
+and lookup_variable env t e = 
+  let dOpt = Hashtbl.find_opt !currLocals e in 
+  (match dOpt with 
+  | None -> get t env
+  | Some d -> getAt d env t), env
+
+and assign_env env t e = 
+  let v, env' = eval_expr env e in 
+  let dOpt = Hashtbl.find_opt !currLocals e in 
+  v, (match dOpt with 
+  | None -> assign t v env'
+  | Some d -> assignAt d env' t v)
 
 and eval_logic b env e1 e2 = 
   let left, env' = eval_expr env e1 in 

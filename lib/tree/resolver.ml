@@ -2,13 +2,13 @@
 open Ast 
 open Token 
 open Errorhandling
-open State 
+(* open State  *)
 
 module Scope = Map.Make(String)
 
 type scope = bool Scope.t
 
-type locals = (token, int) Hashtbl.t
+type locals = (expr, int) Hashtbl.t
 
 type currEnclose = 
 | Nothing 
@@ -17,6 +17,8 @@ type currEnclose =
 let scope_stack : scope Stack.t = Stack.create ()
 
 let currLocals : locals ref = ref (Hashtbl.create 256) 
+
+let currEnc = ref Nothing 
 
 let begin_scope () = Stack.push (Scope.empty) scope_stack
 
@@ -27,14 +29,20 @@ let token_scoped t defined =
   else let top = Stack.pop scope_stack in 
     Stack.push (Scope.add t.lexeme defined top) scope_stack
 
-let declare_token t = token_scoped t false 
+let declare_token t = 
+  if Stack.is_empty scope_stack then () 
+  else let top = Stack.pop scope_stack in 
+    if Scope.mem t.lexeme top then 
+      error_token t "Already a variable with this name in this scope."
+    else Stack.push (Scope.add t.lexeme false top) scope_stack
+  (* token_scoped t false  *)
 
 let define_token t = token_scoped t true 
 
 let resolve_tok_depth e n = Hashtbl.add (!currLocals) e n 
 
-let resolve_local t = 
-  Stack.fold (fun () map -> if Scope.mem t.lexeme map then resolve_tok_depth t 0 else ()) () scope_stack
+let resolve_local e t = 
+  Stack.fold (fun () map -> if Scope.mem t.lexeme map then resolve_tok_depth e 0 else ()) () scope_stack
 
 let rec resolve_expr = function 
 | EVar t -> resolve_var t 
@@ -53,10 +61,10 @@ and resolve_call e eList =
 and resolve_var t = 
   if not (Stack.is_empty scope_stack) && Scope.find_opt t.lexeme (Stack.top scope_stack)  = Some false then 
     error_token t "Can't read local variable in its own initializer."
-  else resolve_local t 
+  else resolve_local (EVar t) t 
 
 and resolve_assign t e = 
-  resolve_expr e; resolve_local t
+  resolve_expr e; resolve_local (EAssign (t, e)) t
 
 let rec resolve_stmt = function 
 | SBlock stmtList -> resolve_block stmtList
@@ -65,16 +73,19 @@ let rec resolve_stmt = function
 | SExpr e -> resolve_expr e
 | SIf (e, s, sOpt) -> resolve_if e s sOpt
 | SPrint e -> resolve_expr e
-| SReturn (_, eOpt) -> resolve_return eOpt 
+| SReturn (tok, eOpt) -> resolve_return tok eOpt 
 | SWhile (e, s) -> resolve_while e s
 (* | _ -> failwith "Unimplemented" *)
 
 and resolve_while e s = 
   resolve_expr e; resolve_stmt s
 
-and resolve_return = function 
-| None -> ()
-| Some e -> resolve_expr e
+and resolve_return tok eOpt =
+  if !currEnc = Nothing then 
+    error_token tok "Can't return from top-level code"
+  else match eOpt with 
+  | None -> ()
+  | Some e -> resolve_expr e
 
 and resolve_if e s sOpt = 
   resolve_expr e; resolve_stmt s; 
@@ -83,13 +94,16 @@ and resolve_if e s sOpt =
   | Some elseStmt -> resolve_stmt elseStmt
 
 and resolve_fun t tl sl = 
-  declare_token t; define_token t; resolve_fun_body tl sl; 
+  declare_token t; define_token t; resolve_fun_body tl sl Function; 
 
-and resolve_fun_body tl sl = 
+and resolve_fun_body tl sl ce = 
+  let enclosing = !currEnc in 
+  currEnc := ce; 
   begin_scope (); 
   List.fold_left (fun () t -> declare_token t; define_token t) () tl; 
   resolve_block sl; 
-  end_scope () 
+  end_scope (); 
+  currEnc := enclosing
 
 and resolve_vardecl tok expr_opt = 
   declare_token tok; match expr_opt with 

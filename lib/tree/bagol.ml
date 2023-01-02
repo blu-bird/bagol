@@ -33,7 +33,9 @@ let run src =
   (* let expr = Parser.parse tokens in (* EXPRESSIONS *) *)
   let stmtList = Parser.parse tokens in 
   if !hadError then () else 
-  print_endline (string_of_int (List.length stmtList)); 
+  (* print_endline (string_of_int (List.length stmtList)); a *)
+  Resolver.resolve stmtList; 
+  if !hadError then () else 
   (* print_endline (format_expr expr); (* EXPRESSIONS *) *)
   Interpreter.interpret(stmtList)
 

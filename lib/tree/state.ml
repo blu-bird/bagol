@@ -50,6 +50,13 @@ let push_env env = {prev = Some env; bindings = empty_bindings}
 
 let pop_env env = match env.prev with | Some p -> p | None -> failwith "Runtime error: No previous env to evaluate ins"
 
+let rec ancestor env d = 
+  if d = 0 then env else ancestor (pop_env env) (d-1)
+
+let getAt d env t = get t (ancestor env d)
+
+let assignAt d env t v = assign t v (ancestor env d)
+
 let globals = empty_env |> define "clock" (VFunc {data = BuiltIn; arity = 0; call = fun _ -> VNum (Sys.time ())}) 
 
 let string_of_val = function 
