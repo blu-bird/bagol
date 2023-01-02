@@ -66,6 +66,8 @@ and eval_plus b env v1 v2 =
   | VStr s1 , VStr s2 -> VStr (s1 ^ s2), env
   | _, _ -> raise (RuntimeError (b, "Operands must be two numbers or two strings."))
 
+(* added this block for resolver *) 
+   (* unsure if these functions do anything with persistent envs *)
 and lookup_variable env t e = 
   let dOpt = Hashtbl.find_opt !currLocals e in 
   (match dOpt with 
@@ -78,6 +80,7 @@ and assign_env env t e =
   v, (match dOpt with 
   | None -> assign t v env'
   | Some d -> assignAt d env' t v)
+(* end block for resolver *)
 
 and eval_logic b env e1 e2 = 
   let left, env' = eval_expr env e1 in 
@@ -113,6 +116,8 @@ and eval_fun_call env fdata fcall vals =
     print_endline (Printf.sprintf "fun %s new closure: %s" tok.lexeme (string_of_env nextCl)); 
     fdata.closure <- nextCl; 
     fcall vals, env 
+
+(* and fix_closures  *)
 
 and eval_block env stmtList = 
   let blockEnv = {prev = Some env; bindings = empty_bindings} in 

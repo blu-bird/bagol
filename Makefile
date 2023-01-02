@@ -24,5 +24,5 @@ test-funcs:
 	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/fibrecur.bgl
 
 test-curr: 
-	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/test.bgl
+	OCAMLRUNPARAM=b dune exec bin/tree/treeinterpreter.exe data/nestedclosures.bgl
 
