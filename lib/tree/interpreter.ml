@@ -105,25 +105,59 @@ and eval_call env e t eList =
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
 
 and eval_fun_call env fdata fcall vals =
-    let (tok, _, _) = fdata.decl in 
+    let (tok, paramToks, body) = fdata.decl in 
     print_endline (Printf.sprintf "fun %s closure: %s" tok.lexeme (string_of_env fdata.closure)); 
     let fun_env = push_env fdata.closure in 
-    let (_, paramToks, body) = fdata.decl in 
     let params = List.map (fun t -> t.lexeme) paramToks in 
     let boundVar_env = List.fold_left2 (fun e s v -> define s v e) fun_env params vals in 
     let outEnv = eval_block boundVar_env body in 
+    print_endline ("after evaluating body: " ^ string_of_env outEnv);
     let nextCl = pop_env outEnv in
     print_endline (Printf.sprintf "fun %s new closure: %s" tok.lexeme (string_of_env nextCl)); 
     fdata.closure <- nextCl; 
-    fcall vals, env 
+    print_encloser (); 
+    let updatedEnv = update_env (match Hashtbl.find !currEncloser tok with 
+    | Nothing -> env
+    | Function f -> fix_closures env nextCl f) nextCl in
+    print_endline ("updated env: " ^ (string_of_env updatedEnv)); 
+    fcall vals, updatedEnv 
+and update_env env1 env2 = 
+  let new_bindings = env2.bindings in 
+  let newEnv1 = Env.fold (fun s v env -> 
+    if member s env then define s v env else env) new_bindings env1 in 
+  match env2.prev with 
+  | None -> print_endline (string_of_env newEnv1);  newEnv1
+  | Some p -> update_env newEnv1 p 
+  (* print_endline (string_of_env env2); 
+  print_endline (string_of_env newEnv1);  *)
+  (* newEnv1  *)
+  
 
-(* and fix_closures  *)
+(* if the closure of a function was updated and it was enclosed by another function
+   we may need to fix the closure of that function too *)
+and fix_closures env nextCl funTok =
+  let updatedCl = pop_env (pop_env nextCl) in (* i don't know why it's two?? *)
+  print_endline ("updated closure: " ^ string_of_env updatedCl);
+  let funVal = get funTok env in 
+  match funVal with 
+  | VFunc f -> (match f.data with 
+    | Func fd -> fd.closure <- updatedCl; (* recursively check the one above that *)
+      let encFunTok, _, _ = fd.decl in 
+      print_endline ("enclosing function: " ^ string_of_token encFunTok); 
+      (match Hashtbl.find !currEncloser encFunTok with 
+      | Nothing -> env
+      | Function fn -> fix_closures env updatedCl fn)
+    | _ -> failwith "No closure to update.")
+  | _ -> failwith "Not enclosed in a function."
+
 
 and eval_block env stmtList = 
   let blockEnv = {prev = Some env; bindings = empty_bindings} in 
-  let endEnv = List.fold_left (fun e stmt -> eval_stmt e stmt) blockEnv stmtList in
+  let endEnv = List.fold_left (fun e stmt -> let next = eval_stmt e stmt in
+     print_endline ("next env: " ^ string_of_env next); next) blockEnv stmtList in
   match endEnv.prev with 
-    None -> failwith ("Impossible exiting block env: " ^ (string_of_env endEnv)) | Some p -> p
+    None -> failwith ("Impossible exiting block env: " ^ (string_of_env endEnv)) | Some p -> 
+      print_endline ("endEnv: " ^ string_of_env endEnv); p
 
 and eval_vardecl env tok = function 
 | None -> define tok.lexeme VNil env 

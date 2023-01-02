@@ -12,13 +12,25 @@ type locals = (expr, int) Hashtbl.t
 
 type currEnclose = 
 | Nothing 
-| Function 
+| Function of token
 
 let scope_stack : scope Stack.t = Stack.create ()
 
 let currLocals : locals ref = ref (Hashtbl.create 256) 
 
 let currEnc = ref Nothing 
+
+type encloser = (token , currEnclose) Hashtbl.t
+
+let currEncloser : encloser ref = ref (Hashtbl.create 256)
+
+let string_of_currEnclose = function 
+| Nothing -> "nothing"
+| Function f -> "function " ^ string_of_token f 
+
+let print_encloser () = Hashtbl.iter 
+  (fun k v -> print_string (k.lexeme ^ ": " ^ string_of_currEnclose v ^ " ")) 
+  !currEncloser; print_string "\n"
 
 let begin_scope () = Stack.push (Scope.empty) scope_stack
 
@@ -30,11 +42,12 @@ let token_scoped t defined =
     Stack.push (Scope.add t.lexeme defined top) scope_stack
 
 let declare_token t = 
-  if Stack.is_empty scope_stack then () 
+  (if Stack.is_empty scope_stack then () 
   else let top = Stack.pop scope_stack in 
     if Scope.mem t.lexeme top then 
       error_token t "Already a variable with this name in this scope."
-    else Stack.push (Scope.add t.lexeme false top) scope_stack
+    else Stack.push (Scope.add t.lexeme false top) scope_stack); 
+      Hashtbl.add !currEncloser t !currEnc (* added line here *)
   (* token_scoped t false  *)
 
 let define_token t = token_scoped t true 
@@ -94,7 +107,8 @@ and resolve_if e s sOpt =
   | Some elseStmt -> resolve_stmt elseStmt
 
 and resolve_fun t tl sl = 
-  declare_token t; define_token t; resolve_fun_body tl sl Function; 
+  declare_token t; print_string ("declared " ^ t.lexeme ^ "; "); print_encloser ();  
+  define_token t; resolve_fun_body tl sl (Function t); 
 
 and resolve_fun_body tl sl ce = 
   let enclosing = !currEnc in 
@@ -106,7 +120,9 @@ and resolve_fun_body tl sl ce =
   currEnc := enclosing
 
 and resolve_vardecl tok expr_opt = 
-  declare_token tok; match expr_opt with 
+  declare_token tok; 
+  print_string ("declared " ^ tok.lexeme ^ "; "); print_encloser (); 
+  match expr_opt with 
   | None -> ()
   | Some e -> resolve_expr e; 
   define_token tok; 

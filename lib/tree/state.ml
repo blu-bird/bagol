@@ -31,6 +31,12 @@ and funcData = {decl : token * token list * stmt list ; mutable closure : env}
 
 let define s v env = {env with bindings = Env.add s v env.bindings}
 
+let rec member s env = 
+  if Env.mem s env.bindings then true 
+  else match env.prev with 
+  | None -> false 
+  | Some p -> member s p
+
 let rec get tok env = 
   if Env.mem tok.lexeme env.bindings then Env.find tok.lexeme env.bindings
   else match env.prev with 
