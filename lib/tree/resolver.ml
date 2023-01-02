@@ -2,16 +2,21 @@
 open Ast 
 open Token 
 open Errorhandling
+open State 
 
 module Scope = Map.Make(String)
 
 type scope = bool Scope.t
+
+type locals = (token, int) Hashtbl.t
 
 type currEnclose = 
 | Nothing 
 | Function 
 
 let scope_stack : scope Stack.t = Stack.create ()
+
+let currLocals : locals ref = ref (Hashtbl.create 256) 
 
 let begin_scope () = Stack.push (Scope.empty) scope_stack
 
@@ -26,7 +31,7 @@ let declare_token t = token_scoped t false
 
 let define_token t = token_scoped t true 
 
-let resolve_tok_depth _ _ = ()
+let resolve_tok_depth e n = Hashtbl.add (!currLocals) e n 
 
 let resolve_local t = 
   Stack.fold (fun () map -> if Scope.mem t.lexeme map then resolve_tok_depth t 0 else ()) () scope_stack
