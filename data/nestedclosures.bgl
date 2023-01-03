@@ -19,7 +19,7 @@ fun f1() {
 }
 f1();
 
-print "f1 executed"; 
+// print "f1 executed"; 
 
 f();
 // expect: a
