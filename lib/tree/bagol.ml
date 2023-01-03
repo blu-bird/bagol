@@ -1,9 +1,10 @@
 open Scanner
 open Token
 open Errorhandling
-open Ast
+(* open Ast *)
 open Parser
 open Interpreter
+(* open Resolver *)
 
 (**[print_tokens] prints all elements in [tokens].*)
 let rec print_tokens tokens = 
@@ -12,19 +13,6 @@ let rec print_tokens tokens =
   | h :: [] -> print_endline (string_of_token h); flush stdout
   | h :: h' :: t -> print_endline (string_of_token h); print_tokens (h' :: t)
 
-(**[format_expr] returns a string representation of an [expr].*)
-let rec format_expr = function 
-| EBool b -> string_of_bool b
-| ENum f -> string_of_float f
-| EStr s -> "\"" ^ s ^ "\""
-| ENil -> "nil"
-| EUnary (u, e) -> "(" ^ u.lexeme ^ " " ^ format_expr e ^ ")" 
-| EBinary (b , e1 , e2) -> "(" ^ b.lexeme ^ " " ^ format_expr e1 ^ " " ^ format_expr e2 ^ ")"
-| EGroup e -> "(group " ^ (format_expr e) ^ " )" 
-| EVar t -> t.lexeme
-| EAssign (t, e) -> "(assign " ^ t.lexeme ^ " " ^ format_expr e ^ ")"
-| ELogic (b, e1, e2) -> "(logic-" ^ b.lexeme ^ " " ^ format_expr e1 ^ " " ^ format_expr e2 ^ ")"  
-| ECall (e, _, _) -> "(call " ^ format_expr e ^ " on " ^ ")" 
 
 let run src = 
   (* print_endline src;  *)
@@ -33,7 +21,10 @@ let run src =
   (* let expr = Parser.parse tokens in (* EXPRESSIONS *) *)
   let stmtList = Parser.parse tokens in 
   if !hadError then () else 
-  print_endline (string_of_int (List.length stmtList)); 
+  (* print_endline (string_of_int (List.length stmtList));  *)
+  Resolver.resolve stmtList; 
+  (* print_endline (string_of_locals ());  *)
+  if !hadError then () else 
   (* print_endline (format_expr expr); (* EXPRESSIONS *) *)
   Interpreter.interpret(stmtList)
 

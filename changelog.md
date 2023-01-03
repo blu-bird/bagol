@@ -33,4 +33,17 @@ pattern as we would in an object-oriented language.
 
 ### Chapter 8: Statements and State 
 - **Environments must be passed as arguments to statement/expression evaluation**
+  - DO YOU ACTUALLY WANT THIS? OR DO YOU WANT A REF? 
 - Refactoring while loops as (mutually) recursive functions 
+
+***(WE NEED MORE UNIT TESTS!!)***
+
+### Chapter 9: Control Flow
+
+### Chapter 10: Functions 
+
+### Chapter 11: Resolving and Binding
+
+### Chapter 12: Classes 
+
+### Chapter 13: Inheritance 
