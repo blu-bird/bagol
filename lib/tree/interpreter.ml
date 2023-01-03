@@ -111,22 +111,25 @@ and eval_fun_call env fdata fcall vals =
     let params = List.map (fun t -> t.lexeme) paramToks in 
     let boundVar_env = List.fold_left2 (fun e s v -> define s v e) fun_env params vals in 
     let outEnv = eval_block boundVar_env body in 
-    print_endline ("after evaluating body: " ^ string_of_env outEnv);
+    (* print_endline ("after evaluating body: " ^ string_of_env outEnv); *)
     let nextCl = pop_env outEnv in
     print_endline (Printf.sprintf "fun %s new closure: %s" tok.lexeme (string_of_env nextCl)); 
     fdata.closure <- nextCl; 
-    print_encloser (); 
+    (* print_encloser ();  *)
     let updatedEnv = update_env (match Hashtbl.find !currEncloser tok with 
     | Nothing -> env
     | Function f -> fix_closures env nextCl f) nextCl in
     print_endline ("updated env: " ^ (string_of_env updatedEnv)); 
     fcall vals, updatedEnv 
+
 and update_env env1 env2 = 
   let new_bindings = env2.bindings in 
   let newEnv1 = Env.fold (fun s v env -> 
-    if member s env then define s v env else env) new_bindings env1 in 
+    if member s env then assign_str s v env else env) new_bindings env1 in 
   match env2.prev with 
-  | None -> print_endline (string_of_env newEnv1);  newEnv1
+  | None -> 
+    (* print_endline (string_of_env newEnv1);   *)
+    newEnv1
   | Some p -> update_env newEnv1 p 
   (* print_endline (string_of_env env2); 
   print_endline (string_of_env newEnv1);  *)
@@ -137,13 +140,14 @@ and update_env env1 env2 =
    we may need to fix the closure of that function too *)
 and fix_closures env nextCl funTok =
   let updatedCl = pop_env (pop_env nextCl) in (* i don't know why it's two?? *)
-  print_endline ("updated closure: " ^ string_of_env updatedCl);
+  (* print_endline ("updated closure: " ^ string_of_env updatedCl); *)
+  print_endline ("passed env: " ^ string_of_env env); 
   let funVal = get funTok env in 
   match funVal with 
   | VFunc f -> (match f.data with 
     | Func fd -> fd.closure <- updatedCl; (* recursively check the one above that *)
       let encFunTok, _, _ = fd.decl in 
-      print_endline ("enclosing function: " ^ string_of_token encFunTok); 
+      (* print_endline ("enclosing function: " ^ string_of_token encFunTok);  *)
       (match Hashtbl.find !currEncloser encFunTok with 
       | Nothing -> env
       | Function fn -> fix_closures env updatedCl fn)
@@ -154,10 +158,12 @@ and fix_closures env nextCl funTok =
 and eval_block env stmtList = 
   let blockEnv = {prev = Some env; bindings = empty_bindings} in 
   let endEnv = List.fold_left (fun e stmt -> let next = eval_stmt e stmt in
-     print_endline ("next env: " ^ string_of_env next); next) blockEnv stmtList in
+     (* print_endline ("next env: " ^ string_of_env next);  *)
+     next) blockEnv stmtList in
   match endEnv.prev with 
     None -> failwith ("Impossible exiting block env: " ^ (string_of_env endEnv)) | Some p -> 
-      print_endline ("endEnv: " ^ string_of_env endEnv); p
+      (* print_endline ("endEnv: " ^ string_of_env endEnv);  *)
+      p
 
 and eval_vardecl env tok = function 
 | None -> define tok.lexeme VNil env 
@@ -192,7 +198,7 @@ and eval_fun env tok params body =
 
 and eval_stmt env = function  
 | SExpr e -> let _, env' = eval_expr env e in env' 
-| SPrint e -> let value, env' = eval_expr env e in print_endline (string_of_val value); flush stdout; env' 
+| SPrint e -> let value, env' = eval_expr env e in print_endline (string_of_val value); print_endline (string_of_env env'); flush stdout; env' 
 | SVarDecl (tok, expr_opt) -> eval_vardecl env tok expr_opt
 | SBlock stmtList -> eval_block env stmtList 
 | SIf (e, st, seOpt) -> eval_if env e st seOpt
@@ -203,7 +209,9 @@ and eval_stmt env = function
 let interpret stmtList = 
   (* STATEMENTS *)
   try (
-    let _ = List.fold_left (fun e stmt -> let outEnv = eval_stmt e stmt in print_endline (string_of_env outEnv); outEnv) empty_env stmtList in ()
+    let _ = List.fold_left (fun e stmt -> let outEnv = eval_stmt e stmt in 
+    (* print_endline (string_of_env outEnv);  *)
+    outEnv) empty_env stmtList in ()
   ) with 
   | RuntimeError (t, msg) -> runtimeError (RuntimeError (t, msg))
   | Failure s -> raise (Failure ("Unhandled runtime error. " ^ s))

@@ -107,7 +107,8 @@ and resolve_if e s sOpt =
   | Some elseStmt -> resolve_stmt elseStmt
 
 and resolve_fun t tl sl = 
-  declare_token t; print_string ("declared " ^ t.lexeme ^ "; "); print_encloser ();  
+  declare_token t; 
+  (* print_string ("declared " ^ t.lexeme ^ "; "); print_encloser ();   *)
   define_token t; resolve_fun_body tl sl (Function t); 
 
 and resolve_fun_body tl sl ce = 
@@ -121,7 +122,7 @@ and resolve_fun_body tl sl ce =
 
 and resolve_vardecl tok expr_opt = 
   declare_token tok; 
-  print_string ("declared " ^ tok.lexeme ^ "; "); print_encloser (); 
+  (* print_string ("declared " ^ tok.lexeme ^ "; "); print_encloser ();  *)
   match expr_opt with 
   | None -> ()
   | Some e -> resolve_expr e; 

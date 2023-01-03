@@ -49,6 +49,11 @@ let rec assign tok v env =
   | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
   | Some p -> {env with prev = Some (assign tok v p)}
 
+let rec assign_str s v env = 
+  if Env.mem s env.bindings then {env with bindings = Env.add s v env.bindings}
+  else match env.prev with 
+  | None -> failwith ("Assigning to undefined variable '" ^ s ^ "'.")
+  | Some p -> {env with prev = Some (assign_str s v p)}
 let empty_bindings = Env.empty 
 let empty_env = {prev = None; bindings = empty_bindings}
 
