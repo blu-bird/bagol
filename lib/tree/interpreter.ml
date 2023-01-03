@@ -103,20 +103,12 @@ and eval_call e t eList =
 
 and eval_fun_call fdata fcall vals oldEnv =
     let (_, paramToks, body) = fdata.decl in 
-    (* let argString = List.fold_left (fun s v -> s ^ " " ^ string_of_val v ) "" vals in  *)
-    (* print_endline ("calling " ^ tok.lexeme ^ " with args" ^ argString); 
-    print_endline ("curr env pre eval: " ^ (string_of_env !curr_env)); 
-    print_endline (Printf.sprintf "fun %s closure: %s" tok.lexeme (string_of_env fdata.closure));  *)
-    (* let old_env = !curr_env in  *)
     curr_env := fdata.closure; push_env (); 
     let params = List.map (fun t -> t.lexeme) paramToks in 
     List.fold_left2 (fun () s v -> define s v) () params vals;
     eval_block body; 
-    (* let _ = pop_env () in  *)
-    (* print_endline ("curr env after block: " ^ (string_of_env !curr_env)); flush stdout;  *)
-
+    (* update the closure if needed *)
     let nextCl = pop_env () in
-    (* print_endline (Printf.sprintf "fun %s new closure: %s" tok.lexeme (string_of_env nextCl));  *)
     fdata.closure <- nextCl; 
     curr_env := oldEnv; 
     fcall vals
@@ -125,7 +117,6 @@ and eval_block stmtList =
   push_env (); 
   List.fold_left (fun () stmt -> eval_stmt stmt) () stmtList; 
   let _ = pop_env () in ()
-  (* print_endline ("after block: " ^ string_of_env (!curr_env)); flush stdout *)
 
 and eval_vardecl tok = function 
 | None -> define tok.lexeme VNil 
@@ -146,12 +137,10 @@ and eval_while e s =
   else ()
 
 and eval_fun tok params body = 
-  (* print_endline (string_of_env !curr_env);  *)
   let funcData = {decl = (tok, params, body); closure = !curr_env} in 
   let funval = VFunc {arity = List.length params; call = (fun _ -> VNil); data = Func funcData} in 
   define tok.lexeme funval; 
   funcData.closure <- !curr_env; 
-  (* print_endline (string_of_env !curr_env);  *)
 
 and eval_return _ exprOpt = 
   let returnValue = (match exprOpt with 
