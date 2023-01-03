@@ -4,6 +4,7 @@ open Errorhandling
 (* open Ast *)
 open Parser
 open Interpreter
+(* open Resolver *)
 
 (**[print_tokens] prints all elements in [tokens].*)
 let rec print_tokens tokens = 
@@ -22,6 +23,7 @@ let run src =
   if !hadError then () else 
   (* print_endline (string_of_int (List.length stmtList));  *)
   Resolver.resolve stmtList; 
+  (* print_endline (string_of_locals ());  *)
   if !hadError then () else 
   (* print_endline (format_expr expr); (* EXPRESSIONS *) *)
   Interpreter.interpret(stmtList)

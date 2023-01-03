@@ -41,14 +41,14 @@ let string_of_val = function
   | BuiltIn s -> "<native " ^ s ^ ">"
   (* | _ -> failwith "not a function" *)
 
-let rec string_of_bindings_help binds = 
+let rec string_of_bindings_help binds fk fv = 
   match binds with 
   | [] -> ""
-  | (s,v) :: [] -> s ^ ": " ^ (string_of_val v)
-  | (s', v') :: h' :: t -> s' ^ ": " ^ (string_of_val v') ^ ", " ^ string_of_bindings_help (h' :: t)
+  | (s,v) :: [] -> (fk s) ^ ": " ^ (fv v)
+  | (s', v') :: h' :: t -> (fk s') ^ ": " ^ (fv v') ^ ", " ^ string_of_bindings_help (h' :: t) fk fv
 
 let string_of_bindings binds = 
-  "[" ^ string_of_bindings_help binds ^ "]"
+  "[" ^ string_of_bindings_help binds (fun x -> x) (string_of_val) ^ "]"
 
 let rec string_of_env env = 
   "{prev: " ^ (match env.prev with None -> "None" | Some p -> string_of_env p) 
