@@ -2,7 +2,7 @@
 open Ast 
 open Token 
 open Errorhandling
-(* open State  *)
+open State 
 
 module Scope = Map.Make(String)
 
@@ -17,6 +17,15 @@ type currEnclose =
 let scope_stack : scope Stack.t = Stack.create ()
 
 let currLocals : locals ref = ref (Hashtbl.create 256) 
+
+let string_of_scope scope = string_of_bindings_help (Scope.bindings scope) (fun x -> x) (string_of_bool)
+  
+let string_of_locals () = "[" ^ 
+  string_of_bindings_help
+    (Hashtbl.fold (fun k v m -> if List.mem_assoc k m then m else (k, v) :: m) !currLocals [])
+    (format_expr) (string_of_int) ^ "]"
+
+let string_of_scope_stack () = Stack.fold (fun s m -> s ^ string_of_scope m) "" scope_stack
 
 let currEnc = ref Nothing 
 
@@ -36,10 +45,10 @@ let begin_scope () = Stack.push (Scope.empty) scope_stack
 
 let end_scope () = let _ = Stack.pop scope_stack in ()
 
-let token_scoped t defined = 
+(* let token_scoped t defined = 
   if Stack.is_empty scope_stack then () 
   else let top = Stack.pop scope_stack in 
-    Stack.push (Scope.add t.lexeme defined top) scope_stack
+    Stack.push (Scope.add t.lexeme defined top) scope_stack *)
 
 let declare_token t = 
   (if Stack.is_empty scope_stack then () 
@@ -50,12 +59,17 @@ let declare_token t =
       Hashtbl.add !currEncloser t !currEnc (* added line here *)
   (* token_scoped t false  *)
 
-let define_token t = token_scoped t true 
+let define_token t = 
+  if Stack.is_empty scope_stack then () 
+  else let top = Stack.pop scope_stack in 
+    Stack.push (Scope.add t.lexeme true top) scope_stack
 
 let resolve_tok_depth e n = Hashtbl.add (!currLocals) e n 
 
 let resolve_local e t = 
-  Stack.fold (fun () map -> if Scope.mem t.lexeme map then resolve_tok_depth e 0 else ()) () scope_stack
+  let stack_seq = Stack.to_seq scope_stack in 
+  Seq.iteri (fun i map -> if Scope.mem t.lexeme map then resolve_tok_depth e i else ()) stack_seq
+  (* Stack.fold (fun () map -> if Scope.mem t.lexeme map then resolve_tok_depth e 0 else ()) () scope_stack *)
 
 let rec resolve_expr = function 
 | EVar t -> resolve_var t 
@@ -131,6 +145,6 @@ and resolve_vardecl tok expr_opt =
 and resolve_block stmtList = 
   begin_scope (); List.fold_left (fun () s -> resolve_stmt s) () stmtList; end_scope ()
 
-let resolve stmtList = List.fold_left (fun () s -> resolve_stmt s) () stmtList 
+let resolve stmtList = begin_scope(); List.fold_left (fun () s -> resolve_stmt s) () stmtList 
 
 
