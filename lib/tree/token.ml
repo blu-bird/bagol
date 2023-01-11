@@ -21,7 +21,8 @@
   | Null 
  
   type token = 
-    {tokenType : tokenType; lexeme : string; literal : literal; line : int}
+    {tokenType : tokenType; lexeme : string; literal : literal; line : int; 
+    original : bool}
 
   (** [string_of_tokenType] generates the string representation of every term
       of type [tokenType]. Used for unit testing. *)
@@ -79,4 +80,9 @@
 
   (**[string_of_token t] prints the token [t]'s data in the form "tokenType lexeme literal".*)
   let string_of_token t = 
-    Printf.sprintf "%s %s %s" (string_of_tokenType t.tokenType) t.lexeme (string_of_literal t.literal)
+    Printf.sprintf "%s %s %s %d" (string_of_tokenType t.tokenType) t.lexeme (string_of_literal t.literal) 
+    t.line
+
+  let copy_tok t = 
+    {tokenType = t.tokenType; lexeme = t.lexeme; literal = t.literal; line = t.line; 
+    original = false}

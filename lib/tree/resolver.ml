@@ -14,6 +14,7 @@ type currEnclose =
 | Nothing 
 | Function 
 
+(**[scope_stack] is the stack of local scopes*)
 let scope_stack : scope Stack.t = Stack.create ()
 
 let currLocals : locals ref = ref (Hashtbl.create 256) 
@@ -53,9 +54,23 @@ let define_token t =
 
 let resolve_tok_depth e n = Hashtbl.add (!currLocals) e n 
 
+(* start indexing from the top of the stack instead of the front *)
+let rec resolve_local_help s_seq e t idx found = 
+  if found then () else 
+  match s_seq () with 
+  | Seq.Nil -> resolve_tok_depth e idx  
+  | Seq.Cons (map, s_s) -> 
+    (* print_endline ("resolve local curr scope: " ^ string_of_scope map ^ " stack size: " ^ string_of_int (Stack.length scope_stack));  *)
+    if Scope.mem t.lexeme map then 
+    (resolve_tok_depth e idx; resolve_local_help s_s e t (idx + 1) true) else 
+    resolve_local_help s_s e t (idx + 1) false 
+
 let resolve_local e t = 
   let stack_seq = Stack.to_seq scope_stack in 
-  Seq.iteri (fun i map -> if Scope.mem t.lexeme map then resolve_tok_depth e i else ()) stack_seq
+  resolve_local_help stack_seq e t (0) false
+  (* let resolved = ref false in 
+  Seq.iteri (fun i map -> if Scope.mem t.lexeme map && not (!resolved) then (resolve_tok_depth e (i); resolved := true) else ()) stack_seq; *)
+  (* print_endline ("resolving " ^ format_expr e ^ " on " ^ string_of_int t.line ^ " in : " ^ string_of_locals ()) *)
   (* Stack.fold (fun () map -> if Scope.mem t.lexeme map then resolve_tok_depth e 0 else ()) () scope_stack *)
 
 let rec resolve_expr = function 
@@ -113,10 +128,12 @@ and resolve_fun t tl sl =
 and resolve_fun_body tl sl ce = 
   let enclosing = !currEnc in 
   currEnc := ce; 
+  (* print_endline "pushing scope onto stack (fun body eval)"; *)
   begin_scope (); 
   List.fold_left (fun () t -> declare_token t; define_token t) () tl; 
   resolve_block sl; 
   end_scope (); 
+  (* print_endline "popping scope from stack (fun body eval)"; *)
   currEnc := enclosing
 
 and resolve_vardecl tok expr_opt = 
@@ -126,8 +143,13 @@ and resolve_vardecl tok expr_opt =
   define_token tok; 
 
 and resolve_block stmtList = 
-  begin_scope (); List.fold_left (fun () s -> resolve_stmt s) () stmtList; end_scope ()
+  (* print_endline "pushing scope onto stack (block)"; *)
+  begin_scope (); List.fold_left (fun () s -> resolve_stmt s) () stmtList; end_scope (); 
+  (* print_endline "pop scope from stack" *)
 
-let resolve stmtList = begin_scope(); List.fold_left (fun () s -> resolve_stmt s) () stmtList 
+and resolve stmtList = 
+  List.fold_left (fun () s -> resolve_stmt s
+  (* ; print_endline (string_of_locals ()) *)
+  ) () stmtList 
 
 

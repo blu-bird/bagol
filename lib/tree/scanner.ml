@@ -33,7 +33,7 @@ module Scanner = struct
   (** [make_token tt lex lit] creates a new token with [tokenType] [tt], lexeme [lex],
       literal [lit], on the line currently pointed to by the ref [line]. *)
   let make_token tt lex lit = 
-    {tokenType = tt; lexeme = lex; literal = lit; line = !line}
+    {tokenType = tt; lexeme = lex; literal = lit; line = !line; original = true}
 
   (** [match_next expected seq] checks if the next token in the character sequence
       [seq] matches [expected], and returns a pair with the boolean value of this

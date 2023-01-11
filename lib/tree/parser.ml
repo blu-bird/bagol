@@ -119,7 +119,9 @@ module Parser = struct
 
   and primary tokenList = 
     match_next_cond tokenList (checks [FALSE; TRUE; NIL; NUMBER; STRING; LEFT_PAREN; IDENTIFIER]) >>=
-    ((fun tl -> failwith ("Unreachable code, primary expected on " ^ string_of_token (List.hd tl))), 
+    ((fun tl -> raise (parseError (List.hd tl) "Expect expression.")
+      (* failwith ("Unreachable code, primary expected on " ^ string_of_token (List.hd tl)) *)
+      ), 
     (fun (t, tl) -> match t.tokenType with 
     | FALSE -> EBool false , tl
     | TRUE -> EBool true , tl 
@@ -160,7 +162,7 @@ module Parser = struct
     Some (SExpr expr) , tail'
   
   let rec statement tokenList = 
-    match_next_cond tokenList (checks [PRINT; LEFT_BRACE; IF; WHILE; FOR; FUN; RETURN]) >>=
+    match_next_cond tokenList (checks [PRINT; LEFT_BRACE; IF; WHILE; FOR; RETURN]) >>=
     ((fun tl -> exprStatement tl),
     (fun (t, tl) -> match t.tokenType with 
       | PRINT -> printStatement tl
@@ -168,7 +170,6 @@ module Parser = struct
       | IF -> ifStatement tl 
       | WHILE -> whileStatement tl 
       | FOR -> forStatement tl 
-      | FUN -> funcStatement "function" tl
       | RETURN -> returnStatement t tl 
       | _ -> failwith "Unimplemented."))
 
@@ -188,10 +189,12 @@ module Parser = struct
 
   and declaration tokenList = 
     try (
-      let varTok, tail = match_next_cond tokenList (check VAR) in 
-      match varTok with 
-      | None -> statement tail 
-      | Some _ -> varDeclaration tail 
+      match_next_cond tokenList (checks [VAR; FUN]) >>=
+      ((fun tl -> statement tl),
+      (fun (t, tl) -> match t.tokenType with 
+        | VAR -> varDeclaration tl 
+        | FUN -> funcDeclaration "function" tl
+        | _ -> failwith "Unimplemented." ))
     ) 
     with 
     | ParseError -> None, synchronize tokenList 
@@ -248,7 +251,9 @@ module Parser = struct
       (fun (_, tl) -> None, tl)) in 
     let sOpt, loopTail = statement incrTail in 
     let body = match sOpt with None -> failwith "For loop must have body." | Some s -> s in 
-    let whileBody = match incrOpt with None -> body | Some incr -> SBlock [body; SExpr incr] in 
+    let whileBody = match incrOpt with None -> body | Some incr -> 
+      let copyExpr = copy_expr incr in 
+      SBlock [body; SExpr copyExpr] in 
     let whileLoop = SWhile ((match condOpt with None -> EBool true | Some cond -> cond), whileBody) in
     let forBlock = match initOpt with None -> whileLoop | Some init -> SBlock [init; whileLoop] in 
     Some forBlock, loopTail
@@ -261,7 +266,7 @@ module Parser = struct
   match_next_cond idTail (check COMMA) >>=
     ((fun tl -> next_params, tl), (fun (_, tl) -> paramLoop tl next_params))
 
-  and funcStatement kind tokenList = 
+  and funcDeclaration kind tokenList = 
   let name, nameTail = consume tokenList (check IDENTIFIER) ("Expect " ^ kind ^ " name.") in 
   let _, parenTail = consume nameTail (check LEFT_PAREN) ("Expect '(' after " ^ kind ^ " name.") in 
   let params, paramTail = match_next_cond parenTail (check RIGHT_PAREN) >>=
@@ -275,11 +280,13 @@ module Parser = struct
       (Some (SFun (name, params, stmtList))), bodyTail))
 
   and returnStatement tok tokenList = 
-  let exprOpt, exprTail = match_next_cond tokenList (check SEMICOLON) >>=
-    ((fun tl -> let expr, nextTail = expression tl in Some expr, nextTail), 
-    (fun (_, tl) -> None, tl)) in 
-  let _, tail = consume exprTail (check SEMICOLON) "Expect ';' after return value." in 
-  Some (SReturn (tok, exprOpt)), tail 
+    match_next_cond tokenList (check SEMICOLON) >>=
+    ((fun tl -> let expr, nextTail = expression tl in 
+      let _, tail = consume nextTail (check SEMICOLON) "Expect ';' after return value." in
+      Some (SReturn (tok, Some expr)), tail), 
+    (fun (_, tl) -> Some (SReturn (tok, None)), tl)) 
+   
+  (* Some (SReturn (tok, exprOpt)), tail  *)
    
   let rec parseStmtLoop tokenList acc = 
     let endTok, tail = match_next_cond tokenList (check EOF) in 
