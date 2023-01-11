@@ -10,4 +10,5 @@
   resolver
   scanner
   state
+  terminal
   token))
