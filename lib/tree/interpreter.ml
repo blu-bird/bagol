@@ -3,6 +3,7 @@ open Token
 open Errorhandling
 open State
 open Resolver
+(* open Terminal  *)
 
 module Interpreter = struct
 
@@ -28,8 +29,11 @@ let rec eval_expr = function
 | EGroup e -> eval_expr e
 | EUnary (u, e) -> eval_unop u e
 | EBinary (b, e1, e2) -> eval_binop b e1 e2
-| EVar tok -> lookup_variable tok (EVar tok) 
-| EAssign (tok, e) -> assign_env tok e 
+| EVar tok -> lookup_variable tok (EVar tok)  
+| EAssign (tok, e) -> 
+  (* print_endline ("i'm assigning " ^ tok.lexeme);  *)
+  (* let v = eval_expr e in assign tok (eval_expr e); v *)
+  assign_env tok e 
 | ELogic (b, e1, e2) -> eval_logic b e1 e2 
 | ECall (e, t, eList) -> eval_call e t eList 
 
@@ -67,17 +71,37 @@ and eval_plus b v1 v2 =
   | _, _ -> raise (RuntimeError (b, "Operands must be two numbers or two strings."))
 
 and lookup_variable t e = 
+  (* print_endline ("evaluating var " ^ t.lexeme ^ ": " ^ string_of_env !curr_env); *)
+  (* print_endline ("locals: " ^ string_of_locals ()); *)
   let dOpt = Hashtbl.find_opt !currLocals e in 
   (match dOpt with 
-  | None -> get t 
-  | Some d -> getAt d t)
+  | None -> 
+    (* print_endline ("about to get: " ^ string_of_env !curr_env);  *)
+    let v = get t in 
+    (* print_endline ("currenv after get: " ^ string_of_env !curr_env);  *)
+    v
+
+  | Some d -> 
+    (* print_endline ("about to getAt: " ^ string_of_env !curr_env);  *)
+    let v = getAt (d) t in  
+    (* print_endline ("currenv after getAt " ^ string_of_int d ^ ": " ^ string_of_env !curr_env);   *)
+    v)
 
 and assign_env t e = 
   let v = eval_expr e in 
-  let dOpt = Hashtbl.find_opt !currLocals e in 
+  (* print_endline ("pre-assign env: " ^ string_of_env !curr_env);
+  print_endline ("locals: " ^ string_of_locals ());
+  print_endline ("key: " ^ format_expr e); *)
+  let dOpt = Hashtbl.find_opt !currLocals (EAssign (t, e)) in 
   (match dOpt with 
-  | None -> assign t v
-  | Some d -> assignAt d t v); v 
+  | None -> 
+    (* print_endline "no locals?";  *)
+    assign t v; 
+    (* print_endline ("currenv after assigning " ^ t.lexeme ^ ": " ^ string_of_env !curr_env);  *)
+  | Some d -> assignAt (d) t v; 
+  (* print_endline ("currenv after assigningAt " ^ t.lexeme ^ ": " ^ string_of_env !curr_env);  *)
+  );   
+  v 
 
 and eval_logic b e1 e2 = 
   let left = eval_expr e1 in 
@@ -96,13 +120,16 @@ and eval_call e t eList =
     else (* inline the call -- all implementations of call() go here *)
       (match f.data with 
       | BuiltIn _ -> f.call valList
-      | Func fdata -> let old_env = !curr_env in 
-        try ( eval_fun_call fdata f.call valList old_env ) with 
-        | Return retVal -> curr_env := old_env; retVal )
+      | Func fdata -> let old = !curr_env in 
+        try ( let v = eval_fun_call fdata f.call valList in 
+        (* print_endline ("post-call env: " ^ string_of_env !curr_env); *)
+        v ) with 
+        | Return retVal -> curr_env := old; retVal )
   | _ -> raise (RuntimeError (t, "Can only call functions and classes."))
 
-and eval_fun_call fdata fcall vals oldEnv =
+and eval_fun_call fdata fcall vals =
     let (_, paramToks, body) = fdata.decl in 
+    let oldEnv = !curr_env in 
     curr_env := fdata.closure; push_env (); 
     let params = List.map (fun t -> t.lexeme) paramToks in 
     List.fold_left2 (fun () s v -> define s v) () params vals;
@@ -114,7 +141,9 @@ and eval_fun_call fdata fcall vals oldEnv =
     fcall vals
 
 and eval_block stmtList = 
+  (* print_endline ("pre block env " ^ string_of_env !curr_env); *)
   push_env (); 
+  (* print_endline ("block env made " ^ string_of_env !curr_env); *)
   List.fold_left (fun () stmt -> eval_stmt stmt) () stmtList; 
   let _ = pop_env () in ()
 
@@ -131,9 +160,14 @@ and eval_if e st seOpt =
   | Some se -> eval_stmt se 
 
 and eval_while e s = 
+  (* print_endline ("evaluating guard: " ^ string_of_env !curr_env); *)
+  (* print_endline ("guard: " ^ format_expr e);  *)
   let v = eval_expr e in 
+  (* print_endline ("guard evaluated: " ^ string_of_env !curr_env); *)
   if isTruthy v then 
-    (eval_stmt s; eval_while e s)
+    (
+      (* print_endline (format_stmt s);  *)
+  eval_stmt s; eval_while e s)
   else ()
 
 and eval_fun tok params body = 
@@ -152,16 +186,21 @@ and eval_stmt = function
 | SExpr e -> let _ = eval_expr e in ()
 | SPrint e -> let value = eval_expr e in print_endline (string_of_val value); flush stdout
 | SVarDecl (tok, expr_opt) -> eval_vardecl tok expr_opt
-| SBlock stmtList -> eval_block stmtList 
+| SBlock stmtList -> eval_block stmtList; 
+  (* print_endline (string_of_env !curr_env) *)
 | SIf (e, st, seOpt) -> eval_if e st seOpt
-| SWhile (e, s) -> eval_while e s
+| SWhile (e, s) -> 
+  (* print_endline (string_of_env !curr_env);  *)
+  eval_while e s
 | SFun (tok, params, body) -> eval_fun tok params body 
 | SReturn (tok, expr) -> eval_return tok expr 
 
 let interpret stmtList = 
   (* STATEMENTS *)
   try (
-    let _ = List.fold_left (fun () stmt -> eval_stmt stmt) () stmtList in ()
+    let _ = List.fold_left (fun () stmt -> 
+      (* print_endline (string_of_env !curr_env);  *)
+      eval_stmt stmt) () stmtList in ()
   ) with 
   | RuntimeError (t, msg) -> runtimeError (RuntimeError (t, msg))
   | Failure s -> raise (Failure ("Unhandled runtime error. " ^ s))
