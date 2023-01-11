@@ -1,4 +1,4 @@
-(* open Errorhandling  *)
+open Errorhandling 
 (* open Value *)
 open Token 
 open Ast 
@@ -72,7 +72,7 @@ let define s v = Hashtbl.add !curr_env.bindings s v
 let rec get_rec tok env = 
   if Hashtbl.mem env.bindings tok.lexeme then Hashtbl.find env.bindings tok.lexeme
   else match env.prev with 
-  | None -> failwith ("Undefined variable '" ^ tok.lexeme ^ "' in environment " ^ string_of_env !curr_env )
+  | None -> failwith (print_endline (string_of_env !curr_env); "Undefined variable '" ^ tok.lexeme ^ "' in environment " ^ string_of_env env  )
   (* | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'.")) *)
   | Some p -> get_rec tok p
 
@@ -81,7 +81,7 @@ let get tok = get_rec tok !curr_env
 let rec assign_rec tok v env = 
   if Hashtbl.mem env.bindings tok.lexeme then Hashtbl.add env.bindings tok.lexeme v 
   else match env.prev with 
-  | None -> failwith ("Undefined variable '" ^ tok.lexeme ^ "'.")
+  | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'."))
   (* | None -> raise (RuntimeError (tok, "Undefined variable '" ^ tok.lexeme ^ "'.")) *)
   | Some p -> assign_rec tok v p 
 
@@ -92,7 +92,7 @@ let push_env () = curr_env := {prev = Some !curr_env; bindings = Hashtbl.create 
 let pop_env () = match !curr_env.prev with | Some p -> curr_env := p; p | None -> failwith "Runtime error: No previous env"
 
 let rec ancestor_help d env = 
-  if d = 0 then env else 
+  if d <= 0 then env else 
   match env.prev with 
   | None -> failwith "Runtime error: Not enough ancestors"
   | Some p -> ancestor_help (d-1) p 
@@ -101,5 +101,7 @@ let ancestor d = ancestor_help d !curr_env
 
 let getAt d t = get_rec t (ancestor d)
 
-let assignAt d t v = assign_rec t v (ancestor d)
+let assignAt d t v = let modify = ancestor d in 
+(* print_endline (string_of_env modify);  *)
+assign_rec t v modify
 

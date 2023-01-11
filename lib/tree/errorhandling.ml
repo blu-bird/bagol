@@ -1,4 +1,5 @@
 open Token 
+(* open Terminal  *)
 
 exception ParseError 
 exception RuntimeError of token * string 
@@ -23,5 +24,5 @@ let error_token token msg =
 
 let runtimeError = function  
   | RuntimeError (t, msg) -> print_endline 
-    (msg ^ "\n[line " ^ string_of_int (t.line) ^ "]"); hadRuntimeError := true
+    ("[line " ^ string_of_int (t.line) ^ "] " ^ msg ); hadRuntimeError := true
   | _ -> raise (Failure "Could not handle non-runtime error.")
